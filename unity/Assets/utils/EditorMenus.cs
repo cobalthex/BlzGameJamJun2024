@@ -1,7 +1,7 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public static class EditorMenus
 {
@@ -26,6 +26,16 @@ public static class EditorMenus
 
         camera.enabled = false;
         camera.enabled = true;
+    }
+
+    [MenuItem("Tools/Debug Game _F5")]
+    static void F5PlayOrStopGame()
+    {
+        if (!Application.isPlaying)
+        {
+            EditorSceneManager.SaveScene(SceneManager.GetActiveScene(), "", false);
+        }
+        EditorApplication.ExecuteMenuItem("Edit/Play");
     }
 
     static void TeleportObject(GameObject obj, Vector3 down)

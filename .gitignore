@@ -1,2 +1,5 @@
 .vscode/
 .vsconfig
+
+*.blend1
+*.blend1.meta
