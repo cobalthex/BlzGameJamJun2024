@@ -6,24 +6,30 @@ using UnityEngine;
 public class Snowboarder : MonoBehaviour
 {
     SnowboardPhysics m_physics;
-    Transform m_notPhysics;
+    Transform m_rider;
+    Vector3 m_riderOffset;
     Transform m_camera;
+    Vector3 m_cameraOffset;
 
     int m_nextRespawn;
     GameObject[] m_respawns;
 
     bool isGroundedRaycast = false;
 
-    Vector3 m_visualOffset;
 
     //////// Unity messages ////////
 
     void Awake()
     {
         m_physics = transform.Find("Physics").GetComponent<SnowboardPhysics>();
-        m_notPhysics = transform.Find("NotPhysics");
-        m_visualOffset = m_notPhysics.localPosition;
-        m_camera = m_notPhysics.Find("OverheadCam");
+
+        var notPhysics = transform.Find("NotPhysics");
+
+        m_rider = notPhysics.Find("Rider");
+        m_riderOffset = m_rider.localPosition;
+
+        m_camera = notPhysics.Find("OverheadCam");
+        m_cameraOffset = m_camera.localPosition;
     }
 
     void Start()
@@ -35,13 +41,17 @@ public class Snowboarder : MonoBehaviour
 
     void Update()
     {
-        //m_notPhysics.position = m_physics.transform.position + m_visualOffset;
+        m_rider.position = m_physics.transform.position + m_riderOffset;
+        m_rider.rotation = m_physics.Rotation;
+
+        bool isGrounded = m_physics.IsGrounded;
+        var rotation = m_physics.Rotation; // todo: follow velocity
 
         var forward = m_physics.Forward;
         var forwardRotation = Quaternion.LookRotation(forward);
-        m_notPhysics.SetPositionAndRotation(
-            m_physics.transform.position - new Vector3(0, 0.5f, 0), //Vector3.Lerp(m_notPhysics.position, m_physics.position + forward * -8 + new Vector3(0, 3, 0), 1.0f * Time.deltaTime),
-            Quaternion.Lerp(m_notPhysics.rotation, forwardRotation, 1.5f * Time.deltaTime) // todo: clamp the amount
+        m_camera.SetPositionAndRotation(
+            Vector3.Lerp(m_camera.position, m_physics.transform.position + rotation * m_cameraOffset, 2.0f * Time.deltaTime),
+            Quaternion.Lerp(m_camera.rotation, forwardRotation, 1.5f * Time.deltaTime) // todo: clamp the amount
         );
 
         int layerMask = ~0 & ~LayerMask.NameToLayer("SnowboardPhysics");
@@ -68,10 +78,18 @@ public class Snowboarder : MonoBehaviour
             };
         }
 
-        GUI.Label(new Rect(20, 20, 150, 20), $"Forward speed: {m_physics.ForwardSpeed:N1}", s_debugStyle);
-        GUI.Label(new Rect(20, 40, 150, 20), $"Is grounded: phys={m_physics.IsGrounded} ray={isGroundedRaycast}", s_debugStyle);
+        GUILayout.BeginVertical();
 
-        float roll = transform.localEulerAngles.z;
-        GUI.Label(new Rect(20, 60, 150, 20), $"Roll: {roll}", s_debugStyle);
+        GUILayout.Label($"Forward speed: {m_physics.ForwardSpeed:N1}", s_debugStyle);
+        GUILayout.Label($"Is grounded: phys={m_physics.IsGrounded} ray={isGroundedRaycast}", s_debugStyle);
+
+        GUILayout.Label($"Switch: {m_physics.ForwardSpeed < 0}");
+
+        GUILayout.EndVertical();
+    }
+
+    void OnCollisionEnter(Collision collision)
+    {
+        //m_physics.Rigidbody.velocity -= collision.impulse;
     }
 }

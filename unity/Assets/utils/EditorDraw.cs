@@ -20,3 +20,19 @@ public static class EditorDraw
 #endif
     }
 }
+
+public static class DebugDraw
+{
+    public static void DrawArrow(Vector3 tail, Vector3 nose, Vector3 wingPlaneNormal, Color color)
+    {
+        Debug.DrawLine(tail, nose, color);
+
+        var wingLength = (tail - nose).magnitude;
+        var wingTangent = (tail - nose) / 3;
+
+        var left = nose + Quaternion.AngleAxis(-30, wingPlaneNormal) * wingTangent;
+        var right = nose + Quaternion.AngleAxis(30, wingPlaneNormal) * wingTangent;
+        Debug.DrawLine(left, nose, color);
+        Debug.DrawLine(nose, right, color);
+    }
+}

@@ -1,6 +1,4 @@
-using System.Collections;
 using System.Collections.Generic;
-using UnityEditor;
 using UnityEngine;
 
 public readonly struct Orientation
@@ -27,12 +25,13 @@ public readonly struct Orientation
 
 public class SnowboardPhysics : MonoBehaviour
 {
+    // values tuned based on rigidbody mass of 50
     // TODO: make these curves based on speed
-    public float CrawlForce = 30.0f;
-    public float BrakeForce = 60.0f;
-    public float TurnForce = 160.0f;
-    public float JumpForce = 10.0f;
-
+    public float CrawlForce = 20.0f;
+    public float BrakeForce = 40.0f;
+    public float GroundedTurnForce = 100.0f;
+    public float InAirTurnDegPerSec = 90.0f;
+    public float JumpForce = 6.0f;
     public float MaxJumpTimeSec = 0.25f;
 
     public Rigidbody Rigidbody { get; private set; }
@@ -56,17 +55,11 @@ public class SnowboardPhysics : MonoBehaviour
 
     //////// Unity messages ////////
 
-    // Start is called before the first frame update
-    void Awake()
-    {
-        Rigidbody = GetComponent<Rigidbody>();
-        Rotation = transform.rotation;
-    }
-
     void Start()
     {
-        //Rotation = transform.rotation;
-        Rigidbody.rotation = Rotation;
+        Rigidbody = GetComponent<Rigidbody>();
+        Rigidbody.velocity = new Vector3(0, 0, 0.000001f);
+        Rotation = transform.rotation;
     }
 
     // Update is called once per frame
@@ -76,6 +69,7 @@ public class SnowboardPhysics : MonoBehaviour
         float forwardSpeed = ForwardSpeed;
 
         float speed = Rigidbody.velocity.magnitude;
+
         if (speed != 0)
         {
             Rotation = Quaternion.LookRotation(Rigidbody.velocity / speed);
@@ -83,16 +77,19 @@ public class SnowboardPhysics : MonoBehaviour
 
         if (isGrounded)
         {
-            var turnInput = Input.GetAxis("Turn");
+            var turnInput = Input.GetAxisRaw("Turn"); // todo: not raw
             float lowSpeedCap = Mathf.Min(10, speed) / 10f; // todo: improve this, add to rotation
-            float turnStrength = 90.0f * turnInput * lowSpeedCap;
+            float turnStrength = turnInput * lowSpeedCap * GroundedTurnForce;
             if (turnInput != 0)
             {
-                Quaternion turn = Rotation * Quaternion.AngleAxis(90 * turnInput, Vector3.up);
-                Rigidbody.AddForce(turn * Vector3.forward * TurnForce);
+                Rigidbody.AddForce(Rotation * Vector3.right * turnStrength);
             }
 
-            var moveInput = Input.GetAxis("Move");
+            var moveInput = Input.GetAxisRaw("Move");
+            if (Input.GetKey(KeyCode.F)) // fast mode
+            {
+                moveInput *= 3;
+            }
             if (moveInput > 0 || forwardSpeed <= 0) // todo: fix reverse crawl
             {
                 Rigidbody.AddForce(Rotation * new Vector3(0, 0, CrawlForce * moveInput));
@@ -107,8 +104,16 @@ public class SnowboardPhysics : MonoBehaviour
                 m_jumpTimeLimit = Time.time + MaxJumpTimeSec; // rational time?
             }
         }
+        else
+        {
+            var turnInput = Input.GetAxisRaw("Turn"); // todo: not raw
+            //Rotation *= Quaternion.AngleAxis(turnInput * InAirTurnDegPerSec * Time.deltaTime, Vector3.up);
+            float turnStrength = turnInput * InAirTurnDegPerSec;
+            Rigidbody.AddTorque(Vector3.up * turnStrength);
 
-        // todo: hold force
+            // TODO: align up?
+        }
+
         if (Input.GetButton("Jump") &&
             Time.time < m_jumpTimeLimit)
         {
@@ -134,19 +139,33 @@ public class SnowboardPhysics : MonoBehaviour
             transform.position + fwd * 2,
             Vector3.up,
             Color.cyan);
+
+        EditorDraw.DrawArrow(
+            20,
+            transform.position + ContactNormal,
+            transform.position + ContactNormal,
+            Vector3.back,
+            Color.yellow);
     }
+
+    public Vector3 ContactNormal { get; private set; } = Vector3.up;
+
+    private readonly float c_maxSlopeAngleCos = Mathf.Cos(Mathf.Deg2Rad * 90);
 
     private HashSet<Collider> m_colliders = new HashSet<Collider>();
     void OnCollisionEnter(Collision collision)
     {
+        var sumNormals = new Vector3();
         bool any = false;
         for (var i = 0; i < collision.contactCount; ++i)
         {
             var contact = collision.GetContact(i);
-            if (contact.point.z < transform.position.z) // todo: this should use normals too
+            sumNormals += contact.normal;
+
+            var dot = Vector3.Dot(contact.normal, Vector3.up);
+            if (dot > c_maxSlopeAngleCos)
             {
                 any = true;
-                break;
             }
         }
 
@@ -154,6 +173,8 @@ public class SnowboardPhysics : MonoBehaviour
         {
             m_colliders.Add(collision.collider);
         }
+
+        ContactNormal = sumNormals.normalized;
     }
     void OnCollisionExit(Collision collision)
     {
