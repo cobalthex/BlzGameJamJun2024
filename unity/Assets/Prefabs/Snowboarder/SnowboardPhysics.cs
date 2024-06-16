@@ -30,19 +30,19 @@ public class SnowboardPhysics : MonoBehaviour
     public float CrawlForce = 20.0f;
     public float BrakeForce = 40.0f;
     public float GroundedTurnForce = 100.0f;
-    public float InAirTurnDegPerSec = 90.0f;
+    public float InAirTurnDegPerSec = 180.0f;
     public float JumpForce = 6.0f;
     public float MaxJumpTimeSec = 0.25f;
 
     public Rigidbody Rigidbody { get; private set; }
 
-    public float ForwardSpeed => Vector3.Dot(Rigidbody.velocity, Forward);
+    public float ForwardSpeed => Vector3.Dot(Rigidbody.velocity, TravelRotation * Vector3.forward);
 
     public bool IsGrounded => m_colliders.Count > 0;
 
-    public Quaternion Rotation { get; private set; }
+    public Quaternion RiderRotation { get; private set; }
 
-    public Vector3 Forward => Rotation * Vector3.forward;
+    public Quaternion TravelRotation { get; private set; }
 
     private float m_jumpTimeLimit = 0;
 
@@ -59,7 +59,7 @@ public class SnowboardPhysics : MonoBehaviour
     {
         Rigidbody = GetComponent<Rigidbody>();
         Rigidbody.velocity = new Vector3(0, 0, 0.000001f);
-        Rotation = transform.rotation;
+        RiderRotation = TravelRotation = transform.rotation;
     }
 
     // Update is called once per frame
@@ -70,19 +70,25 @@ public class SnowboardPhysics : MonoBehaviour
 
         float speed = Rigidbody.velocity.magnitude;
 
-        if (speed != 0)
+        if (Input.GetKeyDown(KeyCode.G))
         {
-            Rotation = Quaternion.LookRotation(Rigidbody.velocity / speed);
+            Rigidbody.angularVelocity = Vector3.zero;
+            Rigidbody.velocity = Vector3.zero;
         }
 
         if (isGrounded)
         {
+            if (speed != 0)
+            {
+                RiderRotation = TravelRotation = Quaternion.LookRotation(Rigidbody.velocity / speed);
+            }
+
             var turnInput = Input.GetAxisRaw("Turn"); // todo: not raw
             float lowSpeedCap = Mathf.Min(10, speed) / 10f; // todo: improve this, add to rotation
             float turnStrength = turnInput * lowSpeedCap * GroundedTurnForce;
             if (turnInput != 0)
             {
-                Rigidbody.AddForce(Rotation * Vector3.right * turnStrength);
+                Rigidbody.AddForce(TravelRotation * Vector3.right * turnStrength);
             }
 
             var moveInput = Input.GetAxisRaw("Move");
@@ -92,11 +98,11 @@ public class SnowboardPhysics : MonoBehaviour
             }
             if (moveInput > 0 || forwardSpeed <= 0) // todo: fix reverse crawl
             {
-                Rigidbody.AddForce(Rotation * new Vector3(0, 0, CrawlForce * moveInput));
+                Rigidbody.AddForce(TravelRotation * new Vector3(0, 0, CrawlForce * moveInput));
             }
             else if (moveInput < 0)
             {
-                Rigidbody.AddForce(Rotation * new Vector3(0, 0, BrakeForce * Mathf.Clamp(ForwardSpeed, -1, 1) * moveInput));
+                Rigidbody.AddForce(TravelRotation * new Vector3(0, 0, BrakeForce * Mathf.Clamp(ForwardSpeed, -1, 1) * moveInput));
             }
 
             if (Input.GetButtonDown("Jump"))
@@ -106,12 +112,11 @@ public class SnowboardPhysics : MonoBehaviour
         }
         else
         {
+            // mid-air physics handled by not this
             var turnInput = Input.GetAxisRaw("Turn"); // todo: not raw
-            //Rotation *= Quaternion.AngleAxis(turnInput * InAirTurnDegPerSec * Time.deltaTime, Vector3.up);
-            float turnStrength = turnInput * InAirTurnDegPerSec;
-            Rigidbody.AddTorque(Vector3.up * turnStrength);
+            RiderRotation *= Quaternion.AngleAxis(turnInput * InAirTurnDegPerSec * Time.deltaTime, Vector3.up);
 
-            // TODO: align up?
+            // TODO: align up
         }
 
         if (Input.GetButton("Jump") &&
@@ -123,7 +128,7 @@ public class SnowboardPhysics : MonoBehaviour
 
     void OnDrawGizmos()
     {
-        var rotation = Rotation * Vector3.forward;
+        var rotation = TravelRotation * Vector3.forward;
 
         EditorDraw.DrawArrow(
             10,
@@ -173,6 +178,8 @@ public class SnowboardPhysics : MonoBehaviour
         {
             m_colliders.Add(collision.collider);
         }
+
+        // TODO: on-landing, need to calculate the cross forces if board is rotated
 
         ContactNormal = sumNormals.normalized;
     }
