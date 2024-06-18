@@ -1,3 +1,5 @@
+#if UNITY_EDITOR
+
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -145,3 +147,5 @@ public static class EditorMenus
             obj.transform.position = center - obj.transform.position;
     }
 }
+
+#endif // UNITY_EDITOR

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -33,12 +34,17 @@ public class SnowboardPhysics : MonoBehaviour
     public float InAirTurnDegPerSec = 180.0f;
     public float JumpForce = 6.0f;
     public float MaxJumpTimeSec = 0.25f;
+    public float SteeringCorrectionDegresPerSec = 180.0f;
 
     public Rigidbody Rigidbody { get; private set; }
 
+    public float TurnStrength { get; private set; }
+
     public float ForwardSpeed => Vector3.Dot(Rigidbody.velocity, TravelRotation * Vector3.forward);
 
-    public bool IsGrounded => m_colliders.Count > 0;
+    public bool IsRidingSwitch => Quaternion.Dot(RiderRotation, TravelRotation) < 0;
+
+    public bool IsGrounded { get; private set; }
 
     public Quaternion RiderRotation { get; private set; }
 
@@ -80,22 +86,32 @@ public class SnowboardPhysics : MonoBehaviour
         {
             if (speed != 0)
             {
-                RiderRotation = TravelRotation = Quaternion.LookRotation(Rigidbody.velocity / speed);
+                TravelRotation = Quaternion.LookRotation(Rigidbody.velocity / speed);
+                // TODO: this needs to rotate in shortest path
+                RiderRotation = Quaternion.RotateTowards(RiderRotation, TravelRotation, SteeringCorrectionDegresPerSec * Time.deltaTime);
             }
 
-            var turnInput = Input.GetAxisRaw("Turn"); // todo: not raw
+            float turnInput = Input.GetAxisRaw("Turn"); // todo: not raw
+
             float lowSpeedCap = Mathf.Min(10, speed) / 10f; // todo: improve this, add to rotation
-            float turnStrength = turnInput * lowSpeedCap * GroundedTurnForce;
+            float turnForce = turnInput * lowSpeedCap * GroundedTurnForce;
             if (turnInput != 0)
             {
-                Rigidbody.AddForce(TravelRotation * Vector3.right * turnStrength);
+                Rigidbody.AddForce(TravelRotation * Vector3.right * turnForce);
             }
 
+            const float c_maxLeanSpeed = 30;
+            TurnStrength = turnInput * (Mathf.Clamp(speed, 0, c_maxLeanSpeed) / c_maxLeanSpeed);
+
             var moveInput = Input.GetAxisRaw("Move");
-            if (Input.GetKey(KeyCode.F)) // fast mode
+
+#if DEBUG
+            if (Input.GetKey(KeyCode.F)) // fast mode -- TODO: dev only
             {
                 moveInput *= 3;
             }
+#endif // DEBUG
+
             if (moveInput > 0 || forwardSpeed <= 0) // todo: fix reverse crawl
             {
                 Rigidbody.AddForce(TravelRotation * new Vector3(0, 0, CrawlForce * moveInput));
@@ -112,8 +128,11 @@ public class SnowboardPhysics : MonoBehaviour
         }
         else
         {
-            // mid-air physics handled by not this
             var turnInput = Input.GetAxisRaw("Turn"); // todo: not raw
+
+            TurnStrength = turnInput * 0.3f;
+
+            // mid-air physics handled by not this
             RiderRotation *= Quaternion.AngleAxis(turnInput * InAirTurnDegPerSec * Time.deltaTime, Vector3.up);
 
             // TODO: align up
@@ -128,6 +147,13 @@ public class SnowboardPhysics : MonoBehaviour
 
     void OnDrawGizmos()
     {
+#if UNITY_EDITOR
+        if (!Rigidbody)
+        {
+            return;
+        }
+#endif // UNITY_EDITOR
+
         var rotation = TravelRotation * Vector3.forward;
 
         EditorDraw.DrawArrow(
@@ -160,6 +186,8 @@ public class SnowboardPhysics : MonoBehaviour
     private HashSet<Collider> m_colliders = new HashSet<Collider>();
     void OnCollisionEnter(Collision collision)
     {
+        bool wasGrounded = IsGrounded;
+
         var sumNormals = new Vector3();
         bool any = false;
         for (var i = 0; i < collision.contactCount; ++i)
@@ -179,12 +207,32 @@ public class SnowboardPhysics : MonoBehaviour
             m_colliders.Add(collision.collider);
         }
 
-        // TODO: on-landing, need to calculate the cross forces if board is rotated
+        bool isGrounded = m_colliders.Count > 0;
+
+        // TODO: should this be used at all times?
+        // TODO: maybe don't slowdown, but rotate the rider towards the travel direction
+
+        // TODO: when landing sideways, maybe impart a slight directional force?
+        // if (!wasGrounded && IsGrounded &&
+        //     Rigidbody.velocity != Vector3.zero)
+        // {
+        //     // lots of math here
+        //     var relQuat = Quaternion.Inverse(RiderRotation) * TravelRotation;
+        //     float landingAngle = 2 * Mathf.Atan2(new Vector3(relQuat.x, relQuat.y, relQuat.z).magnitude, relQuat.w);
+        //     float similarity = Math.Abs(2 * Mathf.Abs(landingAngle - Mathf.PI) - Mathf.PI) / Mathf.PI; // 1 is parallel, 0 is orthagonal
+
+        //     Debug.Log($"Landing angle:{landingAngle} similarity:{similarity}");
+
+        //     Rigidbody.velocity *= similarity;
+        //     Rigidbody.MoveRotation(RiderRotation); // TODO: not working
+        // }
 
         ContactNormal = sumNormals.normalized;
+        IsGrounded = isGrounded;
     }
     void OnCollisionExit(Collision collision)
     {
         m_colliders.Remove(collision.collider);
+        IsGrounded = m_colliders.Count > 0;
     }
 }

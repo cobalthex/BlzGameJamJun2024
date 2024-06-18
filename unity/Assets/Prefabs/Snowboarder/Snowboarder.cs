@@ -24,21 +24,20 @@ public class Snowboarder : MonoBehaviour
 
     bool m_isGrounded;
 
+    float m_lastTurnStrength= 0;
+
     //////// Unity messages ////////
 
     void Awake()
     {
         m_physics = transform.Find("Physics").GetComponent<SnowboardPhysics>();
 
-        var notPhysics = transform.Find("NotPhysics");
+        m_rider = transform.Find("Rider");
+        m_riderOffset = m_rider.localPosition;
+        m_railInfluence = m_rider.Find("RailInfluence").GetComponent<RailInfluence>();
 
-        m_rider = notPhysics.Find("Rider");
-        m_riderOffset = m_rider.localPosition + notPhysics.localPosition;
-
-        m_camera = notPhysics.Find("OverheadCam");
-        m_cameraOffset = m_camera.localPosition + notPhysics.localPosition;
-
-        m_railInfluence = notPhysics.Find("RailInfluence").GetComponent<RailInfluence>();
+        m_camera = transform.Find("OverheadCam");
+        m_cameraOffset = m_camera.localPosition;
     }
 
     void Start()
@@ -52,11 +51,16 @@ public class Snowboarder : MonoBehaviour
         m_isGrounded = m_physics.IsGrounded;
 
         m_rider.position = m_physics.transform.position + m_riderOffset;
-        m_rider.rotation = m_physics.RiderRotation;
 
+        const float c_maxLeanDegrees = 10;
+        m_lastTurnStrength = Mathf.MoveTowards(m_lastTurnStrength, -m_physics.TurnStrength, c_maxLeanDegrees * Time.deltaTime);
+
+        m_rider.rotation = m_physics.RiderRotation * Quaternion.AngleAxis(m_lastTurnStrength * c_maxLeanDegrees, Vector3.forward);
+
+        // TODO: this better
         m_camera.SetPositionAndRotation(
-            Vector3.Lerp(m_camera.position, m_physics.transform.position + m_physics.TravelRotation * m_cameraOffset, 2.0f * Time.deltaTime),
-            Quaternion.Lerp(m_camera.rotation, m_physics.TravelRotation, 2.0f * Time.deltaTime) // todo: clamp the amount
+            Vector3.Lerp(m_camera.position, m_physics.transform.position + m_physics.TravelRotation * m_cameraOffset, 3.0f * Time.deltaTime),
+            Quaternion.Lerp(m_camera.rotation, m_physics.TravelRotation, 3.0f * Time.deltaTime) // todo: clamp the amount
         );
 
         if (Input.GetKeyDown(KeyCode.R))
@@ -72,6 +76,7 @@ public class Snowboarder : MonoBehaviour
     }
 
     static GUIStyle s_debugStyle;
+    static GUIStyle s_turboStyle;
 
     void OnGUI()
     {
@@ -84,6 +89,15 @@ public class Snowboarder : MonoBehaviour
                     background = Texture2D.grayTexture,
                 }
             };
+
+            s_turboStyle = new GUIStyle
+            {
+                normal =
+                {
+                    background = Texture2D.grayTexture,
+                    textColor = new Color(1, 0.5f, 0.2f),
+                }
+            };
         }
 
         GUILayout.BeginVertical();
@@ -94,6 +108,8 @@ public class Snowboarder : MonoBehaviour
         GUILayout.Label($"Rail nearby: {m_railInfluence.IsColliding}", s_debugStyle);
 
         GUILayout.Label($"Switch: {m_physics.ForwardSpeed < 0}", s_debugStyle);
+
+        GUILayout.Label($"Turbo: {Input.GetKey(KeyCode.F)}", s_turboStyle);
 
         GUILayout.EndVertical();
     }
