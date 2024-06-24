@@ -28,13 +28,14 @@ public class SnowboardPhysics : MonoBehaviour
 {
     // values tuned based on rigidbody mass of 50
     // TODO: make these curves based on speed
-    public float CrawlForce = 20.0f;
-    public float BrakeForce = 40.0f;
-    public float GroundedTurnForce = 100.0f;
+    public float CrawlForce = 40.0f;
+    public float BrakeForce = 80.0f;
+    public float GroundedTurnForce = 150.0f;
     public float InAirTurnDegPerSec = 180.0f;
-    public float JumpForce = 6.0f;
-    public float MaxJumpTimeSec = 0.25f;
+    public float JumpForce = 400.0f;
+    public float MaxJumpTimeSec = 0.25f; // How long you can jump after leaving a ledge, TODO: rename
     public float SteeringCorrectionDegresPerSec = 180.0f;
+    public float InAirGroundDetectionDistance = 10.0f;
 
     public Rigidbody Rigidbody { get; private set; }
 
@@ -49,6 +50,12 @@ public class SnowboardPhysics : MonoBehaviour
     public Quaternion RiderRotation { get; private set; }
 
     public Quaternion TravelRotation { get; private set; }
+
+    /// <summary>
+    /// Can detect the ground (while in air)? Not updated while grounded
+    /// </summary>
+    public bool CanDetectGroundWhileInAir { get; private set; } = true;
+    public float InAirAlignToGroundDegreesPerSec = 45;
 
     private float m_jumpTimeLimit = 0;
 
@@ -71,10 +78,19 @@ public class SnowboardPhysics : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+#if DEBUG
+        if (Input.GetKeyDown(KeyCode.F1))
+        {
+            transform.GetComponent<MeshRenderer>().enabled ^= true;
+        }
+#endif
+
         bool isGrounded = IsGrounded;
+
         float forwardSpeed = ForwardSpeed;
 
         float speed = Rigidbody.velocity.magnitude;
+        Vector3 travelDir = Rigidbody.velocity / speed;
 
         if (Input.GetKeyDown(KeyCode.G))
         {
@@ -86,7 +102,7 @@ public class SnowboardPhysics : MonoBehaviour
         {
             if (speed != 0)
             {
-                TravelRotation = Quaternion.LookRotation(Rigidbody.velocity / speed);
+                TravelRotation = Quaternion.LookRotation(travelDir);
                 // TODO: this needs to rotate in shortest path
                 RiderRotation = Quaternion.RotateTowards(RiderRotation, TravelRotation, SteeringCorrectionDegresPerSec * Time.deltaTime);
             }
@@ -109,7 +125,7 @@ public class SnowboardPhysics : MonoBehaviour
             if (Input.GetKey(KeyCode.F)) // fast mode -- TODO: dev only
             {
                 moveInput *= 3;
-            }
+        }
 #endif // DEBUG
 
             if (moveInput > 0 || forwardSpeed <= 0) // todo: fix reverse crawl
@@ -120,11 +136,6 @@ public class SnowboardPhysics : MonoBehaviour
             {
                 Rigidbody.AddForce(TravelRotation * new Vector3(0, 0, BrakeForce * Mathf.Clamp(ForwardSpeed, -1, 1) * moveInput));
             }
-
-            if (Input.GetButtonDown("Jump"))
-            {
-                m_jumpTimeLimit = Time.time + MaxJumpTimeSec; // rational time?
-            }
         }
         else
         {
@@ -132,16 +143,37 @@ public class SnowboardPhysics : MonoBehaviour
 
             TurnStrength = turnInput * 0.3f;
 
-            // mid-air physics handled by not this
             RiderRotation *= Quaternion.AngleAxis(turnInput * InAirTurnDegPerSec * Time.deltaTime, Vector3.up);
 
-            // TODO: align up
+            Vector3 alignDir = Vector3.up;
+
+            int terrainMask = LayerMask.GetMask("Terrain");
+            if (CanDetectGroundWhileInAir = Physics.Raycast(
+                transform.position,
+                Vector3.down,
+                out var groundTest,
+                InAirGroundDetectionDistance,
+                terrainMask))
+            {
+                alignDir = groundTest.normal;
+                Debug.DrawRay(transform.position, alignDir, Color.red, 0.5f);
+            }
+
+            // TODO: this sort of breaks when the rider rotates mid-air
+            var riderUp = RiderRotation * Vector3.up;
+            var alignQuat = RiderRotation * Quaternion.FromToRotation(riderUp, alignDir);
+
+            Debug.DrawLine(transform.position, transform.position + alignQuat * Vector3.forward * 10, Color.yellow);
+           RiderRotation = Quaternion.RotateTowards(RiderRotation, alignQuat, InAirAlignToGroundDegreesPerSec * Time.deltaTime);
         }
 
-        if (Input.GetButton("Jump") &&
-            Time.time < m_jumpTimeLimit)
+        // allow jumping even if slightly past jumping
+        if (Input.GetButtonUp("Jump") &&
+            (IsGrounded || Time.time < m_jumpTimeLimit))
         {
-            Rigidbody.AddForce(new Vector3(0, JumpForce, 0), ForceMode.Impulse); // todo: proper 'ollie' force
+            // jump vector mid way between ground normal and up?
+            Rigidbody.AddForce(new Vector3(0, JumpForce, 0), ForceMode.Impulse);
+            m_jumpTimeLimit = 0;
         }
     }
 
@@ -227,6 +259,8 @@ public class SnowboardPhysics : MonoBehaviour
         //     Rigidbody.MoveRotation(RiderRotation); // TODO: not working
         // }
 
+        // TODO: crash if impulse too high (base on 'hardness'?)
+
         ContactNormal = sumNormals.normalized;
         IsGrounded = isGrounded;
     }
@@ -234,5 +268,10 @@ public class SnowboardPhysics : MonoBehaviour
     {
         m_colliders.Remove(collision.collider);
         IsGrounded = m_colliders.Count > 0;
+
+        if (!IsGrounded)
+        {
+            m_jumpTimeLimit = Time.time + MaxJumpTimeSec;
+        }
     }
 }
