@@ -44,6 +44,10 @@ public class Snowboarder : MonoBehaviour
     void Start()
     {
         m_respawns = GameObject.FindGameObjectsWithTag("Respawn");
+        if (m_respawns.Length > m_nextRespawn)
+        {
+            m_physics.TeleportTo(new Orientation(m_respawns[m_nextRespawn].transform));
+        }
     }
 
     void Update()

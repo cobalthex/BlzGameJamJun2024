@@ -159,18 +159,23 @@ public class SnowboardPhysics : MonoBehaviour
                 Debug.DrawRay(transform.position, alignDir, Color.red, 0.5f);
             }
 
-            // TODO: this sort of breaks when the rider rotates mid-air
             var riderUp = RiderRotation * Vector3.up;
-            var alignQuat = RiderRotation * Quaternion.FromToRotation(riderUp, alignDir);
 
-            Debug.DrawLine(transform.position, transform.position + alignQuat * Vector3.forward * 10, Color.yellow);
-           RiderRotation = Quaternion.RotateTowards(RiderRotation, alignQuat, InAirAlignToGroundDegreesPerSec * Time.deltaTime);
+            var alignQuat = Quaternion.FromToRotation(riderUp, alignDir);
+
+            // can get unstable at low speeds
+            RiderRotation = Quaternion.RotateTowards(
+                RiderRotation,
+                alignQuat * RiderRotation,
+                InAirAlignToGroundDegreesPerSec * Time.deltaTime);
         }
 
         // allow jumping even if slightly past jumping
         if (Input.GetButtonUp("Jump") &&
             (IsGrounded || Time.time < m_jumpTimeLimit))
         {
+            // TODO: can occasionally double jump
+
             // jump vector mid way between ground normal and up?
             Rigidbody.AddForce(new Vector3(0, JumpForce, 0), ForceMode.Impulse);
             m_jumpTimeLimit = 0;
