@@ -1,13 +1,6 @@
+using System;
 using UnityEditor;
 using UnityEngine;
-
-public enum RiderState
-{
-    InAir,
-    Grounded,
-    Grinding,
-    Crashed,
-}
 
 public class Snowboarder : MonoBehaviour
 {
@@ -22,8 +15,6 @@ public class Snowboarder : MonoBehaviour
 
     int m_nextRespawn;
     GameObject[] m_respawns;
-
-    bool m_isGrounded;
 
     float m_lastTurnStrength= 0;
 
@@ -44,6 +35,8 @@ public class Snowboarder : MonoBehaviour
     void Start()
     {
         m_respawns = GameObject.FindGameObjectsWithTag("Respawn");
+        Array.Sort(m_respawns, (a, b) => a.name.CompareTo(b.name));
+
         if (m_respawns.Length > m_nextRespawn)
         {
             m_physics.TeleportTo(new Orientation(m_respawns[m_nextRespawn].transform));
@@ -52,9 +45,6 @@ public class Snowboarder : MonoBehaviour
 
     void Update()
     {
-        bool wasGrouned = m_isGrounded;
-        m_isGrounded = m_physics.IsGrounded;
-
         m_rider.position = m_physics.transform.position + m_riderOffset;
 
         const float c_maxLeanDegrees = 10;
@@ -121,16 +111,11 @@ public class Snowboarder : MonoBehaviour
 
         GUILayout.Label($"Euler: rider={m_physics.RiderRotation.eulerAngles} travel={m_physics.TravelRotation.eulerAngles}", s_debugStyle);
         GUILayout.Label($"Forward speed: {m_physics.ForwardSpeed:N1}", s_debugStyle);
-        GUILayout.Label($"Is grounded: {m_isGrounded}, can detect: {m_physics.CanDetectGroundWhileInAir}", s_debugStyle);
+        GUILayout.Label($"Rider state: {m_physics.State}, can detect ground: {m_physics.CanDetectGroundWhileInAir}", s_debugStyle);
         GUILayout.Label($"Rail nearby: {m_railInfluence.IsColliding}", s_debugStyle);
-        GUILayout.Label($"Switch: {m_physics.ForwardSpeed < 0}", s_debugStyle); // TODO
+        GUILayout.Label($"Switch: {m_physics.IsRidingSwitch}", s_debugStyle); // TODO
         GUILayout.Label($"Turbo: {Input.GetKey(KeyCode.F)}", s_turboStyle);
 
         GUILayout.EndVertical();
-    }
-
-    void OnCollisionEnter(Collision collision)
-    {
-        //m_physics.Rigidbody.velocity -= collision.impulse;
     }
 }

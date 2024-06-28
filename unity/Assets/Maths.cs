@@ -73,4 +73,22 @@ public static class Quats
 
         return from * twist * swing; // from * twist * swing?
     }
+
+    /// <summary>
+    /// Get the full angle (0-2pi) between two quaternions, with respect to a specific plane of rotation
+    /// </summary>
+    /// <returns>The delta angle</returns>
+    public static float AngleBetween(Quaternion a, Quaternion b, Vector3 withRespectToPlaneNormal)
+    {
+        var delta = Quaternion.Inverse(a) * b;
+        var projection = Vector3.Project(new Vector3(delta.x, delta.y, delta.z), withRespectToPlaneNormal);
+        return 2 * Mathf.Atan2(
+            projection.magnitude,
+            delta.w);
+
+        // var qrel = Project(delta, withRespectToPlaneNormal);
+        // return 2 * Mathf.Atan2(
+        //     new Vector3(qrel.x, qrel.y, qrel.z).magnitude,
+        //     delta.w);
+    }
 }

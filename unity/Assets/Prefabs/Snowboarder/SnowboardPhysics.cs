@@ -1,6 +1,13 @@
-using System;
 using System.Collections.Generic;
 using UnityEngine;
+
+public enum RiderState
+{
+    InAir,
+    Grounded,
+    Grinding,
+    Crashed,
+}
 
 public readonly struct Orientation
 {
@@ -33,9 +40,9 @@ public class SnowboardPhysics : MonoBehaviour
     public float GroundedTurnForce = 150.0f;
     public float InAirTurnDegPerSec = 180.0f;
     public float JumpForce = 400.0f;
-    public float MaxJumpTimeSec = 0.25f; // How long you can jump after leaving a ledge, TODO: rename
+    public float MaxLateJumpTimeSec = 0.25f; // How long you can jump after leaving a ledge, TODO: rename
     public float SteeringCorrectionDegresPerSec = 180.0f;
-    public float InAirGroundDetectionDistance = 10.0f;
+    public float InAirGroundDetectionDistance = 20.0f;
 
     public Rigidbody Rigidbody { get; private set; }
 
@@ -43,9 +50,9 @@ public class SnowboardPhysics : MonoBehaviour
 
     public float ForwardSpeed => Vector3.Dot(Rigidbody.velocity, TravelRotation * Vector3.forward);
 
-    public bool IsRidingSwitch => Quaternion.Dot(RiderRotation, TravelRotation) < 0;
+    public bool IsRidingSwitch { get; private set; }
 
-    public bool IsGrounded { get; private set; }
+    public RiderState State { get; private set; }
 
     public Quaternion RiderRotation { get; private set; }
 
@@ -75,7 +82,6 @@ public class SnowboardPhysics : MonoBehaviour
         RiderRotation = TravelRotation = transform.rotation;
     }
 
-    // Update is called once per frame
     void Update()
     {
 #if DEBUG
@@ -84,8 +90,6 @@ public class SnowboardPhysics : MonoBehaviour
             transform.GetComponent<MeshRenderer>().enabled ^= true;
         }
 #endif
-
-        bool isGrounded = IsGrounded;
 
         float forwardSpeed = ForwardSpeed;
 
@@ -98,13 +102,26 @@ public class SnowboardPhysics : MonoBehaviour
             Rigidbody.velocity = Vector3.zero;
         }
 
-        if (isGrounded)
+        if (State == RiderState.Grounded)
         {
             if (speed != 0)
             {
+                // TODO: if rotation is > 180deg (twist?) flip it
                 TravelRotation = Quaternion.LookRotation(travelDir);
-                // TODO: this needs to rotate in shortest path
-                RiderRotation = Quaternion.RotateTowards(RiderRotation, TravelRotation, SteeringCorrectionDegresPerSec * Time.deltaTime);
+
+                var desiredRotation = TravelRotation;
+                if (IsRidingSwitch)
+                {
+                    // TODO: This breaks lean
+                    desiredRotation *= Quaternion.AngleAxis(180, Vector3.up);
+                }
+
+                // TODO: rider should always try to 'roll correct' (can maybe sterp for that?)
+
+                RiderRotation = Quaternion.RotateTowards(
+                    RiderRotation,
+                    desiredRotation,
+                    SteeringCorrectionDegresPerSec * Time.deltaTime);
             }
 
             float turnInput = Input.GetAxisRaw("Turn"); // todo: not raw
@@ -137,7 +154,7 @@ public class SnowboardPhysics : MonoBehaviour
                 Rigidbody.AddForce(TravelRotation * new Vector3(0, 0, BrakeForce * Mathf.Clamp(ForwardSpeed, -1, 1) * moveInput));
             }
         }
-        else
+        else if (State == RiderState.InAir)
         {
             var turnInput = Input.GetAxisRaw("Turn"); // todo: not raw
 
@@ -169,10 +186,11 @@ public class SnowboardPhysics : MonoBehaviour
                 alignQuat * RiderRotation,
                 InAirAlignToGroundDegreesPerSec * Time.deltaTime);
         }
+        // TODO
 
         // allow jumping even if slightly past jumping
         if (Input.GetButtonUp("Jump") &&
-            (IsGrounded || Time.time < m_jumpTimeLimit))
+            ((State is RiderState.Grounded or RiderState.Grinding) || Time.time < m_jumpTimeLimit))
         {
             // TODO: can occasionally double jump
 
@@ -223,9 +241,26 @@ public class SnowboardPhysics : MonoBehaviour
     private HashSet<Collider> m_colliders = new HashSet<Collider>();
     void OnCollisionEnter(Collision collision)
     {
-        bool wasGrounded = IsGrounded;
+        if (collision.gameObject.layer == LayerMask.NameToLayer("Grindable"))
+        {
+            var grindMesh = collision.transform.GetComponent<MeshFilter>();
+            if (grindMesh != null)
+            {
+                Debug.Log($"Found grindable: {grindMesh} {grindMesh.mesh.vertexCount}");
+                for (int i = 1; i < grindMesh.mesh.vertexCount; ++i)
+                {
+                    Debug.DrawLine(
+                        collision.transform.position + collision.transform.rotation * grindMesh.mesh.vertices[i - 1],
+                        collision.transform.position + collision.transform.rotation * grindMesh.mesh.vertices[i],
+                        Color.cyan,
+                        1);
+                }
+            }
+        }
 
-        var sumNormals = new Vector3();
+        bool wasGrounded = State == RiderState.Grounded;
+
+        var sumNormals = new Vector3(); // collision.impulse.normalized may work here instead?
         bool any = false;
         for (var i = 0; i < collision.contactCount; ++i)
         {
@@ -245,38 +280,49 @@ public class SnowboardPhysics : MonoBehaviour
         }
 
         bool isGrounded = m_colliders.Count > 0;
+        ContactNormal = sumNormals.normalized;
+
+        State = isGrounded ? RiderState.Grounded : RiderState.InAir;
 
         // TODO: should this be used at all times?
         // TODO: maybe don't slowdown, but rotate the rider towards the travel direction
 
         // TODO: when landing sideways, maybe impart a slight directional force?
-        // if (!wasGrounded && IsGrounded &&
-        //     Rigidbody.velocity != Vector3.zero)
-        // {
-        //     // lots of math here
-        //     var relQuat = Quaternion.Inverse(RiderRotation) * TravelRotation;
-        //     float landingAngle = 2 * Mathf.Atan2(new Vector3(relQuat.x, relQuat.y, relQuat.z).magnitude, relQuat.w);
-        //     float similarity = Math.Abs(2 * Mathf.Abs(landingAngle - Mathf.PI) - Mathf.PI) / Mathf.PI; // 1 is parallel, 0 is orthagonal
+        if (!wasGrounded && isGrounded)
+        {
+            //if (Rigidbody.velocity != Vector3.zero)
+            float landingAngle = Quats.AngleBetween(
+                RiderRotation,
+                TravelRotation,
+                ContactNormal);
 
-        //     Debug.Log($"Landing angle:{landingAngle} similarity:{similarity}");
+            if (landingAngle > Mathf.PI)
+            {
+                IsRidingSwitch ^= true;
+            }
+
+
+            // float similarity = Mathf.Abs(2 * Mathf.Abs(landingAngle - Mathf.PI) - Mathf.PI) / Mathf.PI; // 1 is parallel, 0 is orthagonal
+            // simulatiry can be used to detect 'clean' vs 'dirty' landing
+
+            // Debug.Log($"Landing angle:{landingAngle} similarity:{similarity}");
 
         //     Rigidbody.velocity *= similarity;
         //     Rigidbody.MoveRotation(RiderRotation); // TODO: not working
-        // }
+        }
 
         // TODO: crash if impulse too high (base on 'hardness'?)
 
-        ContactNormal = sumNormals.normalized;
-        IsGrounded = isGrounded;
     }
     void OnCollisionExit(Collision collision)
     {
         m_colliders.Remove(collision.collider);
-        IsGrounded = m_colliders.Count > 0;
+        bool isGrounded = m_colliders.Count > 0;
+        State = isGrounded ? RiderState.Grounded : RiderState.InAir;
 
-        if (!IsGrounded)
+        if (!isGrounded)
         {
-            m_jumpTimeLimit = Time.time + MaxJumpTimeSec;
+            m_jumpTimeLimit = Time.time + MaxLateJumpTimeSec;
         }
     }
 }
