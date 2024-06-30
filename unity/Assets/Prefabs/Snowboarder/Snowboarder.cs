@@ -1,5 +1,4 @@
 using System;
-using UnityEditor;
 using UnityEngine;
 
 public class Snowboarder : MonoBehaviour
@@ -10,8 +9,6 @@ public class Snowboarder : MonoBehaviour
 
     Transform m_camera;
     Vector3 m_cameraOffset;
-
-    RailInfluence m_railInfluence;
 
     int m_nextRespawn;
     GameObject[] m_respawns;
@@ -26,7 +23,6 @@ public class Snowboarder : MonoBehaviour
 
         m_rider = transform.Find("Rider");
         m_riderOffset = m_rider.localPosition;
-        m_railInfluence = m_rider.Find("RailInfluence").GetComponent<RailInfluence>();
 
         m_camera = transform.Find("OverheadCam");
         m_cameraOffset = m_camera.localPosition;
@@ -112,7 +108,6 @@ public class Snowboarder : MonoBehaviour
         GUILayout.Label($"Euler: rider={m_physics.RiderRotation.eulerAngles} travel={m_physics.TravelRotation.eulerAngles}", s_debugStyle);
         GUILayout.Label($"Forward speed: {m_physics.ForwardSpeed:N1}", s_debugStyle);
         GUILayout.Label($"Rider state: {m_physics.State}, can detect ground: {m_physics.CanDetectGroundWhileInAir}", s_debugStyle);
-        GUILayout.Label($"Rail nearby: {m_railInfluence.IsColliding}", s_debugStyle);
         GUILayout.Label($"Switch: {m_physics.IsRidingSwitch}", s_debugStyle); // TODO
         GUILayout.Label($"Turbo: {Input.GetKey(KeyCode.F)}", s_turboStyle);
 

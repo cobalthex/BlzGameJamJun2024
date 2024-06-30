@@ -1,5 +1,6 @@
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.UIElements.Experimental;
 
 public static class Quats
 {
@@ -90,5 +91,76 @@ public static class Quats
         // return 2 * Mathf.Atan2(
         //     new Vector3(qrel.x, qrel.y, qrel.z).magnitude,
         //     delta.w);
+    }
+}
+
+public static class Vecs
+{
+    public static float ScalarProject(Vector3 a, Vector3 b)
+    {
+        return Vector3.Dot(a, b) / Vector3.Dot(b, b);
+    }
+
+    public static Vector3 Multiply(Vector3 a, Vector3 b)
+    {
+        return new Vector3(
+            a.x * b.x,
+            a.y * b.y,
+            a.z * b.z
+        );
+    }
+
+    public static Vector3 Divide(Vector3 a, Vector3 b)
+    {
+        return new Vector3(
+            a.x / b.x,
+            a.y / b.y,
+            a.z / b.z
+        );
+    }
+}
+
+public static class Meshes
+{
+    public struct PositionOnMesh
+    {
+        public int m_closestVertex;
+        public int m_direction; // +1 for moving towards increasing vertex indices, -1 for decreasing
+        public float m_relativePosition;
+        public float m_segmentLengthSq;
+
+        public override string ToString()
+        {
+            return $"Closest:{m_closestVertex}{(m_direction >= 0 ? "+1" : "-1")} Rel:{m_relativePosition}/{Mathf.Sqrt(m_segmentLengthSq)}";
+        }
+    }
+
+    public static PositionOnMesh FindPositionOnMesh(Mesh mesh, Transform meshTransform, Vector3 point)
+    {
+        for (int vertex = 0; vertex < mesh.vertexCount - 1; ++vertex)
+        {
+            var segment = meshTransform.TransformDirection(mesh.vertices[vertex + 1] - mesh.vertices[vertex]);
+            var dot = Vector3.Dot(point - meshTransform.position, segment);
+            var projection = dot / Vector3.Dot(segment, segment);
+            if (projection * projection < segment.sqrMagnitude)
+            {
+                return new PositionOnMesh
+                {
+                    m_closestVertex = vertex,
+                    m_direction = dot >= 0 ? 1 : -1,
+                    m_relativePosition = projection,
+                    m_segmentLengthSq = segment.sqrMagnitude,
+                };
+            }
+        }
+
+        // todo: set direction to (pos - 0 vertex) . center
+        return new PositionOnMesh
+        {
+            m_closestVertex = 0,
+            m_relativePosition = 0,
+            m_direction = 1,
+            m_segmentLengthSq = 0,
+        };
     }
 }

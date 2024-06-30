@@ -31,13 +31,22 @@ public readonly struct Orientation
     }
 }
 
+public struct RailRider
+{
+    public Mesh m_rail;
+    public int m_currentVertex;
+    public int m_direction;
+
+    public float m_startTime;
+}
+
 public class SnowboardPhysics : MonoBehaviour
 {
     // values tuned based on rigidbody mass of 50
     // TODO: make these curves based on speed
     public float CrawlForce = 40.0f;
     public float BrakeForce = 80.0f;
-    public float GroundedTurnForce = 150.0f;
+    public float GroundedTurnForce = 200.0f;
     public float InAirTurnDegPerSec = 180.0f;
     public float JumpForce = 400.0f;
     public float MaxLateJumpTimeSec = 0.25f; // How long you can jump after leaving a ledge, TODO: rename
@@ -57,6 +66,8 @@ public class SnowboardPhysics : MonoBehaviour
     public Quaternion RiderRotation { get; private set; }
 
     public Quaternion TravelRotation { get; private set; }
+
+    public RailRider Rail { get; private set; }
 
     /// <summary>
     /// Can detect the ground (while in air)? Not updated while grounded
@@ -142,7 +153,7 @@ public class SnowboardPhysics : MonoBehaviour
             if (Input.GetKey(KeyCode.F)) // fast mode -- TODO: dev only
             {
                 moveInput *= 3;
-        }
+            }
 #endif // DEBUG
 
             if (moveInput > 0 || forwardSpeed <= 0) // todo: fix reverse crawl
@@ -186,14 +197,11 @@ public class SnowboardPhysics : MonoBehaviour
                 alignQuat * RiderRotation,
                 InAirAlignToGroundDegreesPerSec * Time.deltaTime);
         }
-        // TODO
 
         // allow jumping even if slightly past jumping
         if (Input.GetButtonUp("Jump") &&
             ((State is RiderState.Grounded or RiderState.Grinding) || Time.time < m_jumpTimeLimit))
         {
-            // TODO: can occasionally double jump
-
             // jump vector mid way between ground normal and up?
             Rigidbody.AddForce(new Vector3(0, JumpForce, 0), ForceMode.Impulse);
             m_jumpTimeLimit = 0;
@@ -243,18 +251,21 @@ public class SnowboardPhysics : MonoBehaviour
     {
         if (collision.gameObject.layer == LayerMask.NameToLayer("Grindable"))
         {
+            // TODO: verify that the rider is 'above' the rail
+
             var grindMesh = collision.transform.GetComponent<MeshFilter>();
             if (grindMesh != null)
             {
-                Debug.Log($"Found grindable: {grindMesh} {grindMesh.mesh.vertexCount}");
-                for (int i = 1; i < grindMesh.mesh.vertexCount; ++i)
-                {
-                    Debug.DrawLine(
-                        collision.transform.position + collision.transform.rotation * grindMesh.mesh.vertices[i - 1],
-                        collision.transform.position + collision.transform.rotation * grindMesh.mesh.vertices[i],
-                        Color.cyan,
-                        1);
-                }
+                Debug.Log($"Found grindable: {grindMesh} {grindMesh.mesh.vertexCount} size:{collision.collider.bounds.size}");
+
+                // var localPos =
+                //     collision.transform.rotation *
+                //     Vecs.Divide(
+                //         transform.position - collision.transform.position,
+                //         collision.transform.lossyScale);
+
+                var pos = Meshes.FindPositionOnMesh(grindMesh.mesh, collision.transform, transform.position);
+                Debug.Log(pos);
             }
         }
 
@@ -301,7 +312,6 @@ public class SnowboardPhysics : MonoBehaviour
                 IsRidingSwitch ^= true;
             }
 
-
             // float similarity = Mathf.Abs(2 * Mathf.Abs(landingAngle - Mathf.PI) - Mathf.PI) / Mathf.PI; // 1 is parallel, 0 is orthagonal
             // simulatiry can be used to detect 'clean' vs 'dirty' landing
 
@@ -320,9 +330,20 @@ public class SnowboardPhysics : MonoBehaviour
         bool isGrounded = m_colliders.Count > 0;
         State = isGrounded ? RiderState.Grounded : RiderState.InAir;
 
-        if (!isGrounded)
+        if (!isGrounded && m_jumpTimeLimit != 0)
         {
             m_jumpTimeLimit = Time.time + MaxLateJumpTimeSec;
+        }
+    }
+
+    void OnTriggerEnter(Collider collider)
+    {
+        var boostpad = collider.GetComponent<BoostPad>();
+        if (boostpad != null)
+        {
+            Debug.Log("Boost!");
+            // scale magnitude based on direction relative to boostpad direction?
+            Rigidbody.AddForce(TravelRotation * Vector3.forward * boostpad.BoostAcceleration, ForceMode.VelocityChange);
         }
     }
 }
