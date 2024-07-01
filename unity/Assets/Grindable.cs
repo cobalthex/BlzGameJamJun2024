@@ -7,7 +7,7 @@ public class Grindable : MonoBehaviour
     void OnDrawGizmos()
     {
         var grindMesh = GetComponent<MeshFilter>();
-        for (int i = 1; i < grindMesh.mesh.vertexCount; ++i)
+        for (int i = 1; i < 100 && i < grindMesh.mesh.vertexCount; ++i)
         {
             var a = grindMesh.mesh.vertices[i - 1];
             a = transform.position + transform.rotation * a;

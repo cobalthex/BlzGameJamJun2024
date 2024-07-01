@@ -256,7 +256,7 @@ public class SnowboardPhysics : MonoBehaviour
             var grindMesh = collision.transform.GetComponent<MeshFilter>();
             if (grindMesh != null)
             {
-                Debug.Log($"Found grindable: {grindMesh} {grindMesh.mesh.vertexCount} size:{collision.collider.bounds.size}");
+                Debug.Log($"Found grindable: {grindMesh} num verts:{grindMesh.mesh.vertexCount} size:{collision.collider.bounds.size}");
 
                 // var localPos =
                 //     collision.transform.rotation *

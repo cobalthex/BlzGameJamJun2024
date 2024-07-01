@@ -139,8 +139,8 @@ public static class Meshes
     {
         for (int vertex = 0; vertex < mesh.vertexCount - 1; ++vertex)
         {
-            var segment = meshTransform.TransformDirection(mesh.vertices[vertex + 1] - mesh.vertices[vertex]);
-            var dot = Vector3.Dot(point - meshTransform.position, segment);
+            var segment = meshTransform.TransformPoint(mesh.vertices[vertex + 1] - mesh.vertices[vertex]);
+            var dot = Vector3.Dot(point, segment);
             var projection = dot / Vector3.Dot(segment, segment);
             if (projection * projection < segment.sqrMagnitude)
             {
