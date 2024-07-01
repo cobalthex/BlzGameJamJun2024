@@ -8,7 +8,7 @@ ModelImporter:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
       name: SnowBoy
-    second: {fileID: 2100000, guid: b34df7deeccff744cae696888ee76d8e, type: 2}
+    second: {fileID: 2100000, guid: da9ba49be2d02a8499bca505047e6a7d, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0

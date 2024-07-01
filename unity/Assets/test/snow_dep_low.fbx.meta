@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 47f90cd142ad3f040ab5e85f9078f184
+guid: 40457fb1cb82ef140b8fe576bf2dbbe4
 ModelImporter:
   serializedVersion: 22200
   internalIDToNameTable: []
@@ -7,8 +7,8 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
-      name: Metal
-    second: {fileID: 2100000, guid: 15d8a642f8cfeb94d8456fcf26b07e0e, type: 2}
+      name: Snow_Trail
+    second: {fileID: 2100000, guid: 8292f42674f0acb4fbad754fa2d8bf6d, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0

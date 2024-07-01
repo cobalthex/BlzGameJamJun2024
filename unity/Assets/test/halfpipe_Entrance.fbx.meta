@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 47f90cd142ad3f040ab5e85f9078f184
+guid: 3d28fab6f829e1441b4e7b2fb49ead64
 ModelImporter:
   serializedVersion: 22200
   internalIDToNameTable: []
@@ -7,8 +7,13 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
-      name: Metal
-    second: {fileID: 2100000, guid: 15d8a642f8cfeb94d8456fcf26b07e0e, type: 2}
+      name: Ramp
+    second: {fileID: 2100000, guid: a5b44a38da5be1f4b9ee6afa3bd239fc, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Snow
+    second: {fileID: 2100000, guid: 333dab4857c68294085694b2070022d5, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0

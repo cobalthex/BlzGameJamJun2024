@@ -8,27 +8,27 @@ ModelImporter:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
       name: Eyes
-    second: {fileID: 2100000, guid: d16a0b4d83910814787e33c10233ed3d, type: 2}
+    second: {fileID: 2100000, guid: 4e208f7b6100ec6438169fe0ddf036a9, type: 2}
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
       name: Face
-    second: {fileID: 2100000, guid: 2370bcd9a49a6a9488bb0fe2de28463c, type: 2}
+    second: {fileID: 2100000, guid: 622227b058e6a2e41a64cf9adca3009b, type: 2}
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
       name: Feet
-    second: {fileID: 2100000, guid: 5198bee178171cc4da7e42ff347a9a99, type: 2}
+    second: {fileID: 2100000, guid: d1a37d92ed6314f4fabc1fdfc8ee1820, type: 2}
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
       name: Hair
-    second: {fileID: 2100000, guid: d0967c81f9bb5594382a6ff212e8ac7c, type: 2}
+    second: {fileID: 2100000, guid: aac0bb5937e84ba46bcb40463e549ca8, type: 2}
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
       name: Skin
-    second: {fileID: 2100000, guid: 9d441ec986bec3b40a315fec18b49580, type: 2}
+    second: {fileID: 2100000, guid: f34f8762ed498b7449bcbeab2f6fd036, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0
