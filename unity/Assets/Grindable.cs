@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class Grindable : MonoBehaviour
 {
-    void OnDrawGizmos()
+    void OnDrawGizmosSelected()
     {
         var grindMesh = GetComponent<MeshFilter>();
         for (int i = 1; i < 100 && i < grindMesh.mesh.vertexCount; ++i)
@@ -19,6 +19,9 @@ public class Grindable : MonoBehaviour
                 b,
                 Color.black,
                 1);
+            var cross = Vector3.Cross((b - a), Vector3.up);
+            Debug.DrawLine(a - cross, a + cross, Color.black, 1);
+
             var hue = Mathf.Lerp(0.0f, 0.3f, i / (float)grindMesh.mesh.vertexCount);
             Debug.DrawLine(
                 a + new Vector3(0, 0.05f, 0),

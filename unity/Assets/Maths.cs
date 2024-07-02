@@ -118,20 +118,26 @@ public static class Vecs
             a.z / b.z
         );
     }
+
+    // pass in fov?
+    public static bool IsInFrontOf(Vector3 v, Vector3 point, Vector3 direction)
+    {
+        var dot = Vector3.Dot(v - point, direction);
+        return dot > 0;
+    }
 }
 
 public static class Meshes
 {
     public struct PositionOnMesh
     {
-        public int m_closestVertex;
+        public int m_vertex;
         public int m_direction; // +1 for moving towards increasing vertex indices, -1 for decreasing
         public float m_relativePosition;
-        public float m_segmentLengthSq;
 
         public override string ToString()
         {
-            return $"Closest:{m_closestVertex}{(m_direction >= 0 ? "+1" : "-1")} Rel:{m_relativePosition}/{Mathf.Sqrt(m_segmentLengthSq)}";
+            return $"Closest:{m_vertex}{(m_direction >= 0 ? "+1" : "-1")} Rel:{m_relativePosition}";
         }
     }
 
@@ -139,17 +145,18 @@ public static class Meshes
     {
         for (int vertex = 0; vertex < mesh.vertexCount - 1; ++vertex)
         {
-            var segment = meshTransform.TransformPoint(mesh.vertices[vertex + 1] - mesh.vertices[vertex]);
-            var dot = Vector3.Dot(point, segment);
-            var projection = dot / Vector3.Dot(segment, segment);
-            if (projection * projection < segment.sqrMagnitude)
+            var a = meshTransform.TransformPoint(mesh.vertices[vertex]);
+            var b = meshTransform.TransformPoint(mesh.vertices[vertex + 1]);
+            var segment = b - a;
+            var segmentLen = segment.magnitude;
+            var dot = Vector3.Dot(point - a, segment);
+            if (dot < 1)
             {
                 return new PositionOnMesh
                 {
-                    m_closestVertex = vertex,
+                    m_vertex = vertex,
                     m_direction = dot >= 0 ? 1 : -1,
-                    m_relativePosition = projection,
-                    m_segmentLengthSq = segment.sqrMagnitude,
+                    m_relativePosition = dot / segmentLen,
                 };
             }
         }
@@ -157,10 +164,9 @@ public static class Meshes
         // todo: set direction to (pos - 0 vertex) . center
         return new PositionOnMesh
         {
-            m_closestVertex = 0,
+            m_vertex = 0,
             m_relativePosition = 0,
             m_direction = 1,
-            m_segmentLengthSq = 0,
         };
     }
 }

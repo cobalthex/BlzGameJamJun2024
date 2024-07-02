@@ -1,5 +1,7 @@
 using System.Collections.Generic;
+using UnityEditorInternal;
 using UnityEngine;
+using UnityEngine.Assertions.Must;
 
 public enum RiderState
 {
@@ -31,11 +33,11 @@ public readonly struct Orientation
     }
 }
 
-public struct RailRider
+public class RailRider
 {
     public Mesh m_rail;
-    public int m_currentVertex;
-    public int m_direction;
+    public Transform m_railTransform;
+    public Meshes.PositionOnMesh m_position;
 
     public float m_startTime;
 }
@@ -55,13 +57,23 @@ public class SnowboardPhysics : MonoBehaviour
 
     public Rigidbody Rigidbody { get; private set; }
 
+    private Vector3 m_bodyOffset;
+
     public float TurnStrength { get; private set; }
 
     public float ForwardSpeed => Vector3.Dot(Rigidbody.velocity, TravelRotation * Vector3.forward);
 
     public bool IsRidingSwitch { get; private set; }
 
-    public RiderState State { get; private set; }
+    public RiderState State
+    {
+        get
+        {
+            if (Rail != null) return RiderState.Grinding;
+            if (m_colliders.Count > 0) return RiderState.Grounded;
+            return RiderState.InAir;
+        }
+    }
 
     public Quaternion RiderRotation { get; private set; }
 
@@ -82,6 +94,7 @@ public class SnowboardPhysics : MonoBehaviour
         orientation.ApplyTo(Rigidbody);
         Rigidbody.velocity = Vector3.zero;
         Rigidbody.angularVelocity = Vector3.zero;
+        Rail = null;
     }
 
     //////// Unity messages ////////
@@ -91,6 +104,9 @@ public class SnowboardPhysics : MonoBehaviour
         Rigidbody = GetComponent<Rigidbody>();
         Rigidbody.velocity = new Vector3(0, 0, 0.000001f);
         RiderRotation = TravelRotation = transform.rotation;
+
+        m_bodyOffset = new Vector3(0, GetComponent<SphereCollider>().radius, 0); // TODO: calculate on collision?
+        m_bodyOffset = transform.TransformVector(m_bodyOffset);
     }
 
     void Update()
@@ -113,7 +129,11 @@ public class SnowboardPhysics : MonoBehaviour
             Rigidbody.velocity = Vector3.zero;
         }
 
-        if (State == RiderState.Grounded)
+        var moveInput = Input.GetAxisRaw("Move");
+        float turnInput = Input.GetAxisRaw("Turn"); // todo: not raw
+
+        var state = State;
+        if (state == RiderState.Grounded)
         {
             if (speed != 0)
             {
@@ -135,8 +155,6 @@ public class SnowboardPhysics : MonoBehaviour
                     SteeringCorrectionDegresPerSec * Time.deltaTime);
             }
 
-            float turnInput = Input.GetAxisRaw("Turn"); // todo: not raw
-
             float lowSpeedCap = Mathf.Min(10, speed) / 10f; // todo: improve this, add to rotation
             float turnForce = turnInput * lowSpeedCap * GroundedTurnForce;
             if (turnInput != 0)
@@ -146,8 +164,6 @@ public class SnowboardPhysics : MonoBehaviour
 
             const float c_maxLeanSpeed = 30;
             TurnStrength = turnInput * (Mathf.Clamp(speed, 0, c_maxLeanSpeed) / c_maxLeanSpeed);
-
-            var moveInput = Input.GetAxisRaw("Move");
 
 #if DEBUG
             if (Input.GetKey(KeyCode.F)) // fast mode -- TODO: dev only
@@ -165,12 +181,9 @@ public class SnowboardPhysics : MonoBehaviour
                 Rigidbody.AddForce(TravelRotation * new Vector3(0, 0, BrakeForce * Mathf.Clamp(ForwardSpeed, -1, 1) * moveInput));
             }
         }
-        else if (State == RiderState.InAir)
+        else if (state == RiderState.InAir)
         {
-            var turnInput = Input.GetAxisRaw("Turn"); // todo: not raw
-
-            TurnStrength = turnInput * 0.3f;
-
+            TurnStrength = turnInput;
             RiderRotation *= Quaternion.AngleAxis(turnInput * InAirTurnDegPerSec * Time.deltaTime, Vector3.up);
 
             Vector3 alignDir = Vector3.up;
@@ -197,11 +210,62 @@ public class SnowboardPhysics : MonoBehaviour
                 alignQuat * RiderRotation,
                 InAirAlignToGroundDegreesPerSec * Time.deltaTime);
         }
+        else if (state == RiderState.Grinding)
+        {
+            var deltaSpeed = Rigidbody.velocity.magnitude * Time.deltaTime;
+            // TODO: todo: change of direction doesn't work properly
+
+            // TODO: this doesn't work properly for scaled meshes
+
+            Vector3 curSegmentStart;
+            Vector3 curSegmentDirection;
+            Vector3 curSegmentNormal;
+            float relativePosition = 0;
+            while (true)
+            {
+                curSegmentStart = Rail.m_railTransform.TransformPoint(Rail.m_rail.vertices[Rail.m_position.m_vertex]);
+                var nextSegmentStart = Rail.m_railTransform.TransformPoint(Rail.m_rail.vertices[Rail.m_position.m_vertex + Rail.m_position.m_direction]);
+                var segment = nextSegmentStart - curSegmentStart;
+                var segmentLength = segment.magnitude;
+
+                var relPos = Rail.m_position.m_relativePosition + deltaSpeed;
+
+                curSegmentDirection = (segment / segmentLength) * Rail.m_position.m_direction;
+                curSegmentNormal = Vector3.Cross(curSegmentDirection, Rail.m_railTransform.right);
+
+                if (relPos < segmentLength)
+                {
+                    relativePosition = Rail.m_position.m_relativePosition = relPos;
+                    break;
+                }
+
+                Rail.m_position.m_vertex += Rail.m_position.m_direction;
+                if (Rail.m_position.m_vertex <= 0 ||
+                    Rail.m_position.m_vertex >= Rail.m_rail.vertexCount - 1)
+                {
+                    Rail = null;
+                    break;
+                }
+
+                deltaSpeed -= segmentLength - Rail.m_position.m_relativePosition;
+                relativePosition = Rail.m_position.m_relativePosition = 0;
+            }
+
+            transform.position = curSegmentStart + curSegmentDirection * relativePosition + m_bodyOffset;
+
+            TravelRotation = Quaternion.LookRotation(curSegmentDirection);
+            Rigidbody.velocity = TravelRotation * Vector3.forward * Rigidbody.velocity.magnitude;
+
+            RiderRotation *= Quaternion.AngleAxis(turnInput * InAirTurnDegPerSec * Time.deltaTime, Vector3.up); // use rail's up
+            Debug.DrawRay(transform.position, curSegmentNormal, Color.green, 1);
+        }
 
         // allow jumping even if slightly past jumping
         if (Input.GetButtonUp("Jump") &&
             ((State is RiderState.Grounded or RiderState.Grinding) || Time.time < m_jumpTimeLimit))
         {
+            Rail = null;
+
             // jump vector mid way between ground normal and up?
             Rigidbody.AddForce(new Vector3(0, JumpForce, 0), ForceMode.Impulse);
             m_jumpTimeLimit = 0;
@@ -249,27 +313,9 @@ public class SnowboardPhysics : MonoBehaviour
     private HashSet<Collider> m_colliders = new HashSet<Collider>();
     void OnCollisionEnter(Collision collision)
     {
-        if (collision.gameObject.layer == LayerMask.NameToLayer("Grindable"))
-        {
-            // TODO: verify that the rider is 'above' the rail
+        // bool wasGrounded = State == RiderState.Grounded;
 
-            var grindMesh = collision.transform.GetComponent<MeshFilter>();
-            if (grindMesh != null)
-            {
-                Debug.Log($"Found grindable: {grindMesh} num verts:{grindMesh.mesh.vertexCount} size:{collision.collider.bounds.size}");
-
-                // var localPos =
-                //     collision.transform.rotation *
-                //     Vecs.Divide(
-                //         transform.position - collision.transform.position,
-                //         collision.transform.lossyScale);
-
-                var pos = Meshes.FindPositionOnMesh(grindMesh.mesh, collision.transform, transform.position);
-                Debug.Log(pos);
-            }
-        }
-
-        bool wasGrounded = State == RiderState.Grounded;
+        bool above = false;
 
         var sumNormals = new Vector3(); // collision.impulse.normalized may work here instead?
         bool any = false;
@@ -278,10 +324,47 @@ public class SnowboardPhysics : MonoBehaviour
             var contact = collision.GetContact(i);
             sumNormals += contact.normal;
 
+            // TODO: for grind detection, this probably should be more 'up' independent
+            // 'up' being transformed by rail's rotation
+            above |= Vecs.IsInFrontOf(transform.position, contact.point, Vector3.up);
+
             var dot = Vector3.Dot(contact.normal, Vector3.up);
             if (dot > c_maxSlopeAngleCos)
             {
                 any = true;
+            }
+        }
+
+        // Rail detection
+        if (Rail == null &&
+            collision.gameObject.layer == LayerMask.NameToLayer("Grindable") &&
+            above)
+        {
+            // TODO: verify that the rider is 'above' the rail
+
+            var grindMesh = collision.transform.GetComponent<MeshFilter>();
+            if (grindMesh != null)
+            {
+                Debug.Log($"Found grindable: {grindMesh} num verts:{grindMesh.mesh.vertexCount} size:{collision.collider.bounds.size}");
+
+                var pos = Meshes.FindPositionOnMesh(grindMesh.mesh, collision.transform, transform.position);
+                var next = pos.m_vertex + pos.m_direction;
+                if (next >= 0 &&
+                    next < grindMesh.mesh.vertexCount)
+                {
+                    Rail = new RailRider
+                    {
+                        m_rail = grindMesh.mesh,
+                        m_railTransform = grindMesh.transform,
+                        m_position = pos,
+
+                        m_startTime = Time.time,
+                    };
+
+                    // TODO: should probably calculate m_bodyOffset here
+
+                    return;
+                }
             }
         }
 
@@ -293,33 +376,31 @@ public class SnowboardPhysics : MonoBehaviour
         bool isGrounded = m_colliders.Count > 0;
         ContactNormal = sumNormals.normalized;
 
-        State = isGrounded ? RiderState.Grounded : RiderState.InAir;
-
         // TODO: should this be used at all times?
         // TODO: maybe don't slowdown, but rotate the rider towards the travel direction
 
         // TODO: when landing sideways, maybe impart a slight directional force?
-        if (!wasGrounded && isGrounded)
-        {
-            //if (Rigidbody.velocity != Vector3.zero)
-            float landingAngle = Quats.AngleBetween(
-                RiderRotation,
-                TravelRotation,
-                ContactNormal);
+        // if (!wasGrounded && isGrounded)
+        // {
+        //     //if (Rigidbody.velocity != Vector3.zero)
+        //     float landingAngle = Quats.AngleBetween(
+        //         RiderRotation,
+        //         TravelRotation,
+        //         ContactNormal);
 
-            if (landingAngle > Mathf.PI)
-            {
-                IsRidingSwitch ^= true;
-            }
+        //     if (landingAngle > Mathf.PI)
+        //     {
+        //         IsRidingSwitch ^= true;
+        //     }
 
-            // float similarity = Mathf.Abs(2 * Mathf.Abs(landingAngle - Mathf.PI) - Mathf.PI) / Mathf.PI; // 1 is parallel, 0 is orthagonal
-            // simulatiry can be used to detect 'clean' vs 'dirty' landing
+        //     // float similarity = Mathf.Abs(2 * Mathf.Abs(landingAngle - Mathf.PI) - Mathf.PI) / Mathf.PI; // 1 is parallel, 0 is orthagonal
+        //     // simulatiry can be used to detect 'clean' vs 'dirty' landing
 
-            // Debug.Log($"Landing angle:{landingAngle} similarity:{similarity}");
+        //     // Debug.Log($"Landing angle:{landingAngle} similarity:{similarity}");
 
-        //     Rigidbody.velocity *= similarity;
-        //     Rigidbody.MoveRotation(RiderRotation); // TODO: not working
-        }
+        // //     Rigidbody.velocity *= similarity;
+        // //     Rigidbody.MoveRotation(RiderRotation); // TODO: not working
+        // }
 
         // TODO: crash if impulse too high (base on 'hardness'?)
 
@@ -328,7 +409,6 @@ public class SnowboardPhysics : MonoBehaviour
     {
         m_colliders.Remove(collision.collider);
         bool isGrounded = m_colliders.Count > 0;
-        State = isGrounded ? RiderState.Grounded : RiderState.InAir;
 
         if (!isGrounded && m_jumpTimeLimit != 0)
         {
