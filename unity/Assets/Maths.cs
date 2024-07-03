@@ -137,11 +137,11 @@ public static class Meshes
 
         public override string ToString()
         {
-            return $"Closest:{m_vertex}{(m_direction >= 0 ? "+1" : "-1")} Rel:{m_relativePosition}";
+            return $"Closest:{m_vertex}{(m_direction >= 0 ? "+1" : "-1")} Rel:{m_relativePosition:N2}";
         }
     }
 
-    public static PositionOnMesh FindPositionOnMesh(Mesh mesh, Transform meshTransform, Vector3 point)
+    public static PositionOnMesh FindPositionOnMesh(Mesh mesh, Transform meshTransform, Vector3 point, Vector3 riderVelocityDirection)
     {
         for (int vertex = 0; vertex < mesh.vertexCount - 1; ++vertex)
         {
@@ -152,11 +152,13 @@ public static class Meshes
             var dot = Vector3.Dot(point - a, segment);
             if (dot < 1)
             {
+                int direction = Vector3.Dot(riderVelocityDirection, segment) >= 0 ? 1 : -1;
+                float relPos = dot / segmentLen;
                 return new PositionOnMesh
                 {
                     m_vertex = vertex,
-                    m_direction = dot >= 0 ? 1 : -1,
-                    m_relativePosition = dot / segmentLen,
+                    m_direction = direction,
+                    m_relativePosition = relPos,
                 };
             }
         }

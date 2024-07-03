@@ -10,9 +10,9 @@ public class Grindable : MonoBehaviour
         for (int i = 1; i < 100 && i < grindMesh.mesh.vertexCount; ++i)
         {
             var a = grindMesh.mesh.vertices[i - 1];
-            a = transform.position + transform.rotation * a;
+            a = transform.TransformPoint(a);
             var b = grindMesh.mesh.vertices[i];
-            b = transform.position + transform.rotation * b;
+            b = transform.TransformPoint(b);
 
             Debug.DrawLine(
                 a,

@@ -1,7 +1,5 @@
 using System.Collections.Generic;
-using UnityEditorInternal;
 using UnityEngine;
-using UnityEngine.Assertions.Must;
 
 public enum RiderState
 {
@@ -213,9 +211,9 @@ public class SnowboardPhysics : MonoBehaviour
         else if (state == RiderState.Grinding)
         {
             var deltaSpeed = Rigidbody.velocity.magnitude * Time.deltaTime;
-            // TODO: todo: change of direction doesn't work properly
+            // TODO: todo: change of direction doesn't work properly, probably should calculate direction on-the-fly
 
-            // TODO: this doesn't work properly for scaled meshes
+            // jumping onto rail while traveling in negative dir does weird stuff
 
             Vector3 curSegmentStart;
             Vector3 curSegmentDirection;
@@ -230,7 +228,7 @@ public class SnowboardPhysics : MonoBehaviour
 
                 var relPos = Rail.m_position.m_relativePosition + deltaSpeed;
 
-                curSegmentDirection = (segment / segmentLength) * Rail.m_position.m_direction;
+                curSegmentDirection = (segment / segmentLength);// * Rail.m_position.m_direction;
                 curSegmentNormal = Vector3.Cross(curSegmentDirection, Rail.m_railTransform.right);
 
                 if (relPos < segmentLength)
@@ -241,9 +239,13 @@ public class SnowboardPhysics : MonoBehaviour
 
                 Rail.m_position.m_vertex += Rail.m_position.m_direction;
                 if (Rail.m_position.m_vertex <= 0 ||
-                    Rail.m_position.m_vertex >= Rail.m_rail.vertexCount - 1)
+                    Rail.m_position.m_vertex >= Rail.m_rail.vertexCount - 1 ||
+                    speed < 1f)
                 {
+                    // TODO: if speed < 1, nudge left or right off the rail
+                    // also TODO: support gravity rails (check if gravity in same direction as rail?)
                     Rail = null;
+                    relativePosition = segmentLength;
                     break;
                 }
 
@@ -251,6 +253,7 @@ public class SnowboardPhysics : MonoBehaviour
                 relativePosition = Rail.m_position.m_relativePosition = 0;
             }
 
+            // TODO: this should lerp here
             transform.position = curSegmentStart + curSegmentDirection * relativePosition + m_bodyOffset;
 
             TravelRotation = Quaternion.LookRotation(curSegmentDirection);
@@ -347,7 +350,7 @@ public class SnowboardPhysics : MonoBehaviour
             {
                 Debug.Log($"Found grindable: {grindMesh} num verts:{grindMesh.mesh.vertexCount} size:{collision.collider.bounds.size}");
 
-                var pos = Meshes.FindPositionOnMesh(grindMesh.mesh, collision.transform, transform.position);
+                var pos = Meshes.FindPositionOnMesh(grindMesh.mesh, collision.transform, transform.position, Rigidbody.velocity);
                 var next = pos.m_vertex + pos.m_direction;
                 if (next >= 0 &&
                     next < grindMesh.mesh.vertexCount)

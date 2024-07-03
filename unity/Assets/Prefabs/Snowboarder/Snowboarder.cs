@@ -111,6 +111,12 @@ public class Snowboarder : MonoBehaviour
         GUILayout.Label($"Switch: {m_physics.IsRidingSwitch}", s_debugStyle); // TODO
         GUILayout.Label($"Turbo: {Input.GetKey(KeyCode.F)}", s_turboStyle);
 
+        var rail = m_physics.Rail;
+        if (rail != null)
+        {
+            GUILayout.Label($"Rail: {rail.m_position}", s_debugStyle);
+        }
+
         GUILayout.EndVertical();
     }
 }
