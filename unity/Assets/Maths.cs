@@ -96,18 +96,9 @@ public static class Quats
 
 public static class Vecs
 {
-    public static float ScalarProject(Vector3 a, Vector3 b)
+    public static float ScalarProject(Vector3 v, Vector3 onto)
     {
-        return Vector3.Dot(a, b) / Vector3.Dot(b, b);
-    }
-
-    public static Vector3 Multiply(Vector3 a, Vector3 b)
-    {
-        return new Vector3(
-            a.x * b.x,
-            a.y * b.y,
-            a.z * b.z
-        );
+        return Vector3.Dot(v, onto) / onto.magnitude;
     }
 
     public static Vector3 Divide(Vector3 a, Vector3 b)
@@ -119,10 +110,18 @@ public static class Vecs
         );
     }
 
-    // pass in fov?
-    public static bool IsInFrontOf(Vector3 v, Vector3 point, Vector3 direction)
+    public static bool Approx(Vector3 a, Vector3 b, float epsilon)
     {
-        var dot = Vector3.Dot(v - point, direction);
+        return
+            Mathf.Abs(a.x - b.x) < epsilon &&
+            Mathf.Abs(a.y - b.y) < epsilon &&
+            Mathf.Abs(a.z - b.z) < epsilon;
+    }
+
+    // pass in fov?
+    public static bool IsBInFrontOfA(Vector3 a, Vector3 b, Vector3 direction)
+    {
+        var dot = Vector3.Dot(b - a, direction);
         return dot > 0;
     }
 }

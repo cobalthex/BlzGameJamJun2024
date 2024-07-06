@@ -42,18 +42,21 @@ public class RailRider
 
 public class SnowboardPhysics : MonoBehaviour
 {
-    // values tuned based on rigidbody mass of 50
+    // values tuned based on rigidbody mass of 80
     // TODO: make these curves based on speed
-    public float CrawlForce = 40.0f;
-    public float BrakeForce = 80.0f;
-    public float GroundedTurnForce = 200.0f;
+    public float CrawlForce = 80.0f;
+    public float BrakeForce = 600.0f;
+    public float GroundedTurnForce = 400.0f;
     public float InAirTurnDegPerSec = 180.0f;
     public float JumpForce = 400.0f;
+    public float GrindingLateralJumpForce = 100.0f;
     public float MaxLateJumpTimeSec = 0.25f; // How long you can jump after leaving a ledge, TODO: rename
     public float SteeringCorrectionDegresPerSec = 180.0f;
     public float InAirGroundDetectionDistance = 20.0f;
 
     public Rigidbody Rigidbody { get; private set; }
+
+    public Vector3 Position => transform.position;
 
     private Vector3 m_bodyOffset;
 
@@ -198,6 +201,7 @@ public class SnowboardPhysics : MonoBehaviour
                 Debug.DrawRay(transform.position, alignDir, Color.red, 0.5f);
             }
 
+            var decomposed = Quats.DecomposeTS(RiderRotation, Vector3.up);
             var riderUp = RiderRotation * Vector3.up;
 
             var alignQuat = Quaternion.FromToRotation(riderUp, alignDir);
@@ -253,24 +257,28 @@ public class SnowboardPhysics : MonoBehaviour
                 relativePosition = Rail.m_position.m_relativePosition = 0;
             }
 
-            // TODO: this should lerp here
-            transform.position = curSegmentStart + curSegmentDirection * relativePosition + m_bodyOffset;
+            var desiredPosition = curSegmentStart + curSegmentDirection * relativePosition + m_bodyOffset;
+            transform.position = Vector3.Lerp(transform.position, desiredPosition, 2 * Time.deltaTime);
 
             TravelRotation = Quaternion.LookRotation(curSegmentDirection);
             Rigidbody.velocity = TravelRotation * Vector3.forward * Rigidbody.velocity.magnitude;
 
             RiderRotation *= Quaternion.AngleAxis(turnInput * InAirTurnDegPerSec * Time.deltaTime, Vector3.up); // use rail's up
-            Debug.DrawRay(transform.position, curSegmentNormal, Color.green, 1);
         }
 
         // allow jumping even if slightly past jumping
         if (Input.GetButtonUp("Jump") &&
             ((State is RiderState.Grounded or RiderState.Grinding) || Time.time < m_jumpTimeLimit))
         {
-            Rail = null;
+            float lateralForce = 0;
+            if (Rail != null)
+            {
+                lateralForce = turnInput * GrindingLateralJumpForce;
+                Rail = null;
+            }
 
             // jump vector mid way between ground normal and up?
-            Rigidbody.AddForce(new Vector3(0, JumpForce, 0), ForceMode.Impulse);
+            Rigidbody.AddForce(new Vector3(lateralForce, JumpForce, 0), ForceMode.Impulse);
             m_jumpTimeLimit = 0;
         }
     }
@@ -329,7 +337,7 @@ public class SnowboardPhysics : MonoBehaviour
 
             // TODO: for grind detection, this probably should be more 'up' independent
             // 'up' being transformed by rail's rotation
-            above |= Vecs.IsInFrontOf(transform.position, contact.point, Vector3.up);
+            above |= Vecs.IsBInFrontOfA(contact.point, transform.position, Vector3.up);
 
             var dot = Vector3.Dot(contact.normal, Vector3.up);
             if (dot > c_maxSlopeAngleCos)
@@ -348,7 +356,7 @@ public class SnowboardPhysics : MonoBehaviour
             var grindMesh = collision.transform.GetComponent<MeshFilter>();
             if (grindMesh != null)
             {
-                Debug.Log($"Found grindable: {grindMesh} num verts:{grindMesh.mesh.vertexCount} size:{collision.collider.bounds.size}");
+                //Debug.Log($"Found grindable: {grindMesh} num verts:{grindMesh.mesh.vertexCount} size:{collision.collider.bounds.size}");
 
                 var pos = Meshes.FindPositionOnMesh(grindMesh.mesh, collision.transform, transform.position, Rigidbody.velocity);
                 var next = pos.m_vertex + pos.m_direction;
@@ -375,38 +383,7 @@ public class SnowboardPhysics : MonoBehaviour
         {
             m_colliders.Add(collision.collider);
         }
-
-        bool isGrounded = m_colliders.Count > 0;
         ContactNormal = sumNormals.normalized;
-
-        // TODO: should this be used at all times?
-        // TODO: maybe don't slowdown, but rotate the rider towards the travel direction
-
-        // TODO: when landing sideways, maybe impart a slight directional force?
-        // if (!wasGrounded && isGrounded)
-        // {
-        //     //if (Rigidbody.velocity != Vector3.zero)
-        //     float landingAngle = Quats.AngleBetween(
-        //         RiderRotation,
-        //         TravelRotation,
-        //         ContactNormal);
-
-        //     if (landingAngle > Mathf.PI)
-        //     {
-        //         IsRidingSwitch ^= true;
-        //     }
-
-        //     // float similarity = Mathf.Abs(2 * Mathf.Abs(landingAngle - Mathf.PI) - Mathf.PI) / Mathf.PI; // 1 is parallel, 0 is orthagonal
-        //     // simulatiry can be used to detect 'clean' vs 'dirty' landing
-
-        //     // Debug.Log($"Landing angle:{landingAngle} similarity:{similarity}");
-
-        // //     Rigidbody.velocity *= similarity;
-        // //     Rigidbody.MoveRotation(RiderRotation); // TODO: not working
-        // }
-
-        // TODO: crash if impulse too high (base on 'hardness'?)
-
     }
     void OnCollisionExit(Collision collision)
     {

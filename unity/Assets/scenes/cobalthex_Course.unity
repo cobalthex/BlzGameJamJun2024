@@ -315,7 +315,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 57b39b561cf42b04789933491ff4296d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  GateRadius: 10
+  CheckpointMissedGracePeriodSec: 5
 --- !u!4 &103869390
 Transform:
   m_ObjectHideFlags: 0
