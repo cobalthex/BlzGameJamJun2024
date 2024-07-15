@@ -1,4 +1,6 @@
 using System;
+using JetBrains.Annotations;
+using UnityEditor.PackageManager.UI;
 using UnityEngine;
 
 public class SlalomRace
@@ -22,15 +24,33 @@ public class SlalomRace
     }
 }
 
+[CreateAssetMenu(fileName = "Data", menuName = "Snowboarding/Grab Trick", order = 1)]
+public class GrabTrickScriptableObject : ScriptableObject
+{
+    public AnimationClip Animation;
+    public int PointsPerSecond = 100;
+}
+
+public struct GrabTrick
+{
+    public GrabTrickScriptableObject Trick { get; }
+
+    public float StartTime { get; }
+
+    public GrabTrick(GrabTrickScriptableObject trick)
+    {
+        Trick = trick;
+        StartTime = Time.time;
+    }
+}
+
 public class Snowboarder : MonoBehaviour
 {
     SnowboardPhysics m_physics;
     Transform m_rider;
     Vector3 m_riderOffset;
 
-    Transform m_camera;
-    Vector3 m_cameraOffset;
-    Quaternion m_cameraRotation;
+    Animation m_animation;
 
     Transform m_trail;
     Vector3 m_trailOffset;
@@ -42,18 +62,56 @@ public class Snowboarder : MonoBehaviour
 
     public SlalomRace ActiveSlalom { get; private set; }
 
+    public GrabTrick? GrabTrick
+    {
+        get => m_grabTrick;
+        set
+        {
+            if (GrabTrick.HasValue && m_grabTrick.HasValue &&
+                GrabTrick.Value.Trick == m_grabTrick.Value.Trick)
+            {
+                return;
+            }
+
+            m_grabTrick = value;
+            if (m_grabTrick != null)
+            {
+                // TODO
+            }
+        }
+    }
+    private GrabTrick? m_grabTrick;
+
+    public void Respawn()
+    {
+        m_physics.Rigidbody.isKinematic = false;
+        m_physics.TeleportTo(new Orientation(m_respawns[m_nextRespawn].transform));
+        ActiveSlalom = null;
+        m_trail.GetComponent<TrailRenderer>().Clear();
+    }
+
+    public void NextSpawn()
+    {
+        m_nextRespawn = (m_nextRespawn + 1) % m_respawns.Length;
+        Respawn();
+    }
+
+    public void Crash()
+    {
+        m_physics.Rigidbody.isKinematic = true;
+
+    }
+
     //////// Unity messages ////////
 
     void Awake()
     {
         m_physics = transform.Find("Physics").GetComponent<SnowboardPhysics>();
 
+        m_animation = GameObject.FindGameObjectWithTag("RiderAnimation")?.GetComponent<Animation>();
+
         m_rider = transform.Find("Rider");
         m_riderOffset = m_rider.localPosition;
-
-        m_camera = transform.Find("OverheadCam");
-        m_cameraOffset = m_camera.localPosition;
-        m_cameraRotation = m_camera.localRotation;
 
         m_trail = transform.Find("Trail");
         if (m_trail != null)
@@ -74,46 +132,36 @@ public class Snowboarder : MonoBehaviour
         }
     }
 
+    RiderState m_lastRiderState;
     void Update()
     {
-        m_rider.position = m_physics.transform.position + m_riderOffset;
+        // physics
+        {
+            m_rider.position = m_physics.transform.position + m_riderOffset;
 
-        const float c_maxLeanDegrees = 10;
-        m_lastTurnStrength = Mathf.MoveTowards(m_lastTurnStrength, -m_physics.TurnStrength, c_maxLeanDegrees * Time.deltaTime);
+            const float c_maxLeanDegrees = 10;
+            m_lastTurnStrength = Mathf.MoveTowards(m_lastTurnStrength, -m_physics.TurnStrength, c_maxLeanDegrees * Time.deltaTime);
 
-        // Try to keep the rider up-right in roll direction
-        // note: this isn't working while in-air
-        var riderRotation = Quats.Sterp(m_physics.RiderRotation, Quaternion.identity, Vector3.right, 1 * Time.deltaTime);
-        // lean when turning
-        m_rider.rotation = riderRotation * Quaternion.AngleAxis(m_lastTurnStrength * c_maxLeanDegrees, Vector3.forward);
+            // Try to keep the rider up-right in roll direction
+            // note: this isn't working while in-air
+            var riderRotation = m_physics.RiderRotation;
+            riderRotation = Quats.Sterp(riderRotation, Quaternion.identity, m_physics.TravelRotation * Vector3.right, 1 * Time.deltaTime);
+            // lean when turning
+            m_rider.rotation = riderRotation * Quaternion.AngleAxis(m_lastTurnStrength * c_maxLeanDegrees, Vector3.forward);
+        }
+
+        var riderState = m_physics.State;
+        if (riderState != m_lastRiderState)
+        {
+            m_animation.CrossFadeQueued("");
+
+            m_lastRiderState = riderState;
+        }
 
         m_trail.position = m_physics.transform.position + m_trailOffset;
 
-        Quaternion cameraRotation;
-        {
-            var decomposed = Quats.DecomposeTS(m_physics.TravelRotation, Vector3.up);
-            //cameraRotation = decomposed.twist * m_cameraRotation;
-            var dir = (-m_cameraOffset).normalized;
-            cameraRotation = decomposed.twist * Quaternion.LookRotation(dir);
-        }
 
-        m_camera.SetPositionAndRotation(
-            Vector3.Lerp(m_camera.position, m_physics.transform.position + cameraRotation * m_cameraOffset, 3.0f * Time.deltaTime),
-            Quaternion.Lerp(m_camera.rotation, cameraRotation, 3.0f * Time.deltaTime) // lerp if already projecting above
-        );
-
-        if (Input.GetKeyDown(KeyCode.R))
-        {
-            m_physics.TeleportTo(new Orientation(m_respawns[m_nextRespawn].transform));
-            ActiveSlalom = null;
-        }
-        if (Input.GetKeyDown(KeyCode.N))
-        {
-            m_nextRespawn = (m_nextRespawn + 1) % m_respawns.Length;
-            m_physics.TeleportTo(new Orientation(m_respawns[m_nextRespawn].transform));
-        }
-
-        /*
+        /* slalom
         if (ActiveSlalom != null)
         {
             var gate = ActiveSlalom.GetNextCheckpoint();
@@ -168,50 +216,8 @@ public class Snowboarder : MonoBehaviour
         }
     }
 
-    static GUIStyle s_debugStyle;
-    static GUIStyle s_turboStyle;
-
-    void OnGUI()
+    void OnCollisionEnter(Collision c)
     {
-        if (s_debugStyle == null)
-        {
-            s_debugStyle = new GUIStyle
-            {
-                normal =
-                {
-                    background = Texture2D.grayTexture,
-                }
-            };
-
-            s_turboStyle = new GUIStyle
-            {
-                normal =
-                {
-                    background = Texture2D.grayTexture,
-                    textColor = new Color(1, 0.3f, 0.0f),
-                }
-            };
-        }
-
-        GUILayout.BeginVertical();
-
-        GUILayout.Label($"Euler: rider={m_physics.RiderRotation.eulerAngles} travel={m_physics.TravelRotation.eulerAngles}", s_debugStyle);
-        GUILayout.Label($"Forward speed: {m_physics.ForwardSpeed:N1}", s_debugStyle);
-        GUILayout.Label($"Rider state: {m_physics.State}, can detect ground: {m_physics.CanDetectGroundWhileInAir}", s_debugStyle);
-        GUILayout.Label($"Switch: {m_physics.IsRidingSwitch}", s_debugStyle); // TODO
-        GUILayout.Label($"Turbo: {Input.GetKey(KeyCode.F)}", s_turboStyle);
-
-        var rail = m_physics.Rail;
-        if (rail != null)
-        {
-            GUILayout.Label($"Rail: {rail.m_position}", s_debugStyle);
-        }
-
-        if (ActiveSlalom != null)
-        {
-            GUILayout.Label($"Slalom: {ActiveSlalom}", s_debugStyle);
-        }
-
-        GUILayout.EndVertical();
+        Debug.Log("Boarder collision: " + c);
     }
 }

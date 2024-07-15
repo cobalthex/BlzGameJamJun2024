@@ -2,6 +2,15 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements.Experimental;
 
+public static class Floats
+{
+    public static float Rescale(float old, float oldMin, float oldMax, float newMin, float newMax)
+    {
+        float nu = (old - oldMin) / (oldMax - oldMin);
+        return (nu + newMin) * (newMax - newMin);
+    }
+}
+
 public static class Quats
 {
     public struct TwistSwing
