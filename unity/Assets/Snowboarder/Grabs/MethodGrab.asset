@@ -1,0 +1,16 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 55326a4b55e4bc943a382bda30333ac0, type: 3}
+  m_Name: MethodGrab
+  m_EditorClassIdentifier: 
+  Animation: {fileID: 3361656054544464806, guid: 46e0edea37813de46b29382662a620ad, type: 3}
+  PointsPerSecond: 100

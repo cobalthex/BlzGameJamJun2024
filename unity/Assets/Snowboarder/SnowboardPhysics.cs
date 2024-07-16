@@ -99,9 +99,9 @@ public class SnowboardPhysics : MonoBehaviour
     public RailRider Rail { get; private set; }
 
     /// <summary>
-    /// Can detect the ground (while in air)? Not updated while grounded
+    /// Non-null if can detect the ground (while in air)? Not updated while grounded
     /// </summary>
-    public bool CanDetectGroundWhileInAir { get; private set; } = true;
+    public float? DetectedDistanceToGround { get; private set; } = null;
 
     private float m_jumpTimeLimit = 0;
 
@@ -138,12 +138,6 @@ public class SnowboardPhysics : MonoBehaviour
 
         float speed = Rigidbody.velocity.magnitude;
         Vector3 travelDir = Rigidbody.velocity / speed;
-
-        if (Input.GetKeyDown(KeyCode.G))
-        {
-            Rigidbody.angularVelocity = Vector3.zero;
-            Rigidbody.velocity = Vector3.zero;
-        }
 
         float inputMovePower = InputMovePower;
         float inputTurnPower = InputTurnPower;
@@ -203,15 +197,20 @@ public class SnowboardPhysics : MonoBehaviour
             Vector3 alignDir = Vector3.up;
 
             int terrainMask = LayerMask.GetMask("Terrain");
-            if (CanDetectGroundWhileInAir = Physics.Raycast(
+            if (Physics.Raycast(
                 transform.position,
                 Vector3.down,
                 out var groundTest,
                 InAirGroundDetectionDistance,
                 terrainMask))
             {
+                DetectedDistanceToGround = groundTest.distance;
                 alignDir = groundTest.normal;
                 Debug.DrawRay(transform.position, alignDir, Color.red, 0.5f);
+            }
+            else
+            {
+                DetectedDistanceToGround = null;
             }
 
             var riderUp = RiderRotation * Vector3.up;

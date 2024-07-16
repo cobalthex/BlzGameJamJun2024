@@ -1,3 +1,5 @@
+using System;
+using System.Linq;
 using UnityEngine;
 
 public class Player : MonoBehaviour
@@ -68,6 +70,7 @@ public class Player : MonoBehaviour
     static GUIStyle s_debugStyle;
     static GUIStyle s_turboStyle;
     static GUIStyle s_fpsStyle;
+    static GUIStyle s_trickStyle;
 
     void OnGUI()
     {
@@ -98,13 +101,24 @@ public class Player : MonoBehaviour
                     background = Texture2D.grayTexture,
                 }
             };
+
+            s_trickStyle = new GUIStyle
+            {
+                alignment = TextAnchor.MiddleCenter,
+                fontSize = 20,
+                wordWrap = true,
+                normal =
+                {
+                    textColor = new Color(1.0f, 0.3f, 0),
+                }
+            };
         }
 
         GUILayout.BeginVertical();
 
         GUILayout.Label($"Euler: rider={m_physics.RiderRotation.eulerAngles} travel={m_physics.TravelRotation.eulerAngles}", s_debugStyle);
         GUILayout.Label($"Forward speed: {m_physics.ForwardSpeed:N1}", s_debugStyle);
-        GUILayout.Label($"Rider state: {m_physics.State}, can detect ground: {m_physics.CanDetectGroundWhileInAir}", s_debugStyle);
+        GUILayout.Label($"Rider state: {m_physics.State}, dist to ground: {m_physics.DetectedDistanceToGround}", s_debugStyle);
         GUILayout.Label($"Switch: {m_physics.IsRidingSwitch}", s_debugStyle); // TODO
         GUILayout.Label($"Turbo: {Input.GetKey(KeyCode.F)}", s_turboStyle);
 
@@ -114,12 +128,22 @@ public class Player : MonoBehaviour
             GUILayout.Label($"Rail: {rail.m_position}", s_debugStyle);
         }
 
+        if (m_snowboarder.GrabTrick.HasValue)
+        {
+            GUILayout.Label($"Grab: {m_snowboarder.GrabTrick.Value.Trick.name}", s_debugStyle);
+        }
+
         // if (ActiveSlalom != null)
         // {
         //     GUILayout.Label($"Slalom: {ActiveSlalom}", s_debugStyle);
         // }
 
         GUILayout.EndVertical();
+
+        if (m_snowboarder.TricksCombo.Count > 0)
+        {
+            GUI.Label(new Rect((Screen.width - 500) / 2, 30, 500, 200), string.Join(" + ", m_snowboarder.TricksCombo), s_trickStyle);
+        }
 
         GUI.Label(new Rect(Screen.width - 90, 10, 80, 20), $"FPS: {1.0f / Time.deltaTime:N1}", s_fpsStyle);
     }

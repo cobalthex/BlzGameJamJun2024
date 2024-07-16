@@ -1,6 +1,5 @@
 using System;
-using JetBrains.Annotations;
-using UnityEditor.PackageManager.UI;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class SlalomRace
@@ -24,28 +23,10 @@ public class SlalomRace
     }
 }
 
-[CreateAssetMenu(fileName = "Data", menuName = "Snowboarding/Grab Trick", order = 1)]
-public class GrabTrickScriptableObject : ScriptableObject
-{
-    public AnimationClip Animation;
-    public int PointsPerSecond = 100;
-}
-
-public struct GrabTrick
-{
-    public GrabTrickScriptableObject Trick { get; }
-
-    public float StartTime { get; }
-
-    public GrabTrick(GrabTrickScriptableObject trick)
-    {
-        Trick = trick;
-        StartTime = Time.time;
-    }
-}
-
 public class Snowboarder : MonoBehaviour
 {
+    public GrabTrickScriptableObject[] AvailableGrabTricks;
+
     SnowboardPhysics m_physics;
     Transform m_rider;
     Vector3 m_riderOffset;
@@ -62,25 +43,31 @@ public class Snowboarder : MonoBehaviour
 
     public SlalomRace ActiveSlalom { get; private set; }
 
+    public List<string> TricksCombo { get; private set; } = new();
+
     public GrabTrick? GrabTrick
     {
-        get => m_grabTrick;
+        get => _grabTrick;
         set
         {
-            if (GrabTrick.HasValue && m_grabTrick.HasValue &&
-                GrabTrick.Value.Trick == m_grabTrick.Value.Trick)
+            if (value.HasValue && _grabTrick.HasValue &&
+                value.Value.Trick == _grabTrick.Value.Trick)
             {
                 return;
             }
 
-            m_grabTrick = value;
-            if (m_grabTrick != null)
+            _grabTrick = value;
+            if (_grabTrick != null)
             {
-                // TODO
+                m_animation.AddClip(_grabTrick.Value.Trick.Animation, "ActiveTrick");
+                m_animation.CrossFade("ActiveTrick");
+                TricksCombo.Add(_grabTrick.Value.Trick.name); // todo: this needs to wait for previous trick to finish
+                m_nextGrabTrickTime = Time.time + _grabTrick.Value.Trick.Animation.length;
             }
         }
     }
-    private GrabTrick? m_grabTrick;
+    private GrabTrick? _grabTrick;
+    private float m_nextGrabTrickTime = 0;
 
     public void Respawn()
     {
@@ -146,14 +133,66 @@ public class Snowboarder : MonoBehaviour
             // note: this isn't working while in-air
             var riderRotation = m_physics.RiderRotation;
             riderRotation = Quats.Sterp(riderRotation, Quaternion.identity, m_physics.TravelRotation * Vector3.right, 1 * Time.deltaTime);
+
             // lean when turning
             m_rider.rotation = riderRotation * Quaternion.AngleAxis(m_lastTurnStrength * c_maxLeanDegrees, Vector3.forward);
         }
 
         var riderState = m_physics.State;
-        if (riderState != m_lastRiderState)
+        bool trickStateChanged = false;
+
+        if (riderState == RiderState.InAir &&
+            (!m_physics.DetectedDistanceToGround.HasValue ||
+             m_physics.DetectedDistanceToGround > 1.25f)) // tdoo: don't hard code this
         {
-            m_animation.CrossFadeQueued("");
+            if (Input.GetButtonDown("Grab") &&
+                AvailableGrabTricks.Length > 0 &&
+                Time.time >= m_nextGrabTrickTime)
+            {
+                int grabIndex = UnityEngine.Random.Range(0, AvailableGrabTricks.Length - 1);
+                GrabTrick = new GrabTrick(AvailableGrabTricks[grabIndex]); // TODO: random index
+                trickStateChanged = true;
+            }
+            if (Input.GetButtonUp("Grab") &&
+                GrabTrick.HasValue)
+            {
+                GrabTrick = null;
+                trickStateChanged = true;
+            }
+        }
+
+        if (riderState != m_lastRiderState ||
+            trickStateChanged)
+        {
+            switch (riderState)
+            {
+                // TODO: don't hard-code these
+                case RiderState.InAir:
+                    m_animation.CrossFade("Flying");
+                    break;
+
+                case RiderState.Grounded:
+                    m_animation.CrossFade("Boarding_F_L");
+                    TricksCombo.Clear();
+                    break;
+
+                case RiderState.Grinding:
+                    m_animation.CrossFade("Yeti_Board_Balance_L");
+                    TricksCombo.Add("Grind"); // name of rail?
+                    break;
+
+                case RiderState.Crashed:
+                    m_animation.CrossFade("Boarding_Stand");
+                    TricksCombo.Clear();
+                    break;
+            }
+
+            if (riderState != RiderState.InAir)
+            {
+                // could detect crash here
+                GrabTrick = null;
+                m_nextGrabTrickTime = 0;
+            }
 
             m_lastRiderState = riderState;
         }
@@ -199,22 +238,22 @@ public class Snowboarder : MonoBehaviour
         */
     }
 
-    void OnTriggerEnter(Collider collider)
-    {
-        if (ActiveSlalom == null)
-        {
-            var slalom = collider.transform.parent.GetComponent<Slalom>();
-            if (slalom != null)
-            {
-                ActiveSlalom = new SlalomRace
-                {
-                    m_slalom = slalom,
-                    m_nextCheckpointIndex = 1,
-                    m_failTime = 0,
-                };
-            }
-        }
-    }
+    // void OnTriggerEnter(Collider collider)
+    // {
+    //     if (ActiveSlalom == null)
+    //     {
+    //         var slalom = collider.transform.parent.GetComponent<Slalom>();
+    //         if (slalom != null)
+    //         {
+    //             ActiveSlalom = new SlalomRace
+    //             {
+    //                 m_slalom = slalom,
+    //                 m_nextCheckpointIndex = 1,
+    //                 m_failTime = 0,
+    //             };
+    //         }
+    //     }
+    // }
 
     void OnCollisionEnter(Collision c)
     {
