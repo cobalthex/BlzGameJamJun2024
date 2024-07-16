@@ -744,58 +744,6 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 5963398388356158493}
     m_Modifications:
-    - target: {fileID: -8679921383154817045, guid: ee4943927c281c04f90a7d2479102ea6, type: 3}
-      propertyPath: m_LocalScale.x
-      value: 2
-      objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: ee4943927c281c04f90a7d2479102ea6, type: 3}
-      propertyPath: m_LocalScale.y
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: ee4943927c281c04f90a7d2479102ea6, type: 3}
-      propertyPath: m_LocalScale.z
-      value: 2
-      objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: ee4943927c281c04f90a7d2479102ea6, type: 3}
-      propertyPath: m_LocalPosition.x
-      value: -0.05
-      objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: ee4943927c281c04f90a7d2479102ea6, type: 3}
-      propertyPath: m_LocalPosition.y
-      value: 0.025
-      objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: ee4943927c281c04f90a7d2479102ea6, type: 3}
-      propertyPath: m_LocalPosition.z
-      value: -0.05
-      objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: ee4943927c281c04f90a7d2479102ea6, type: 3}
-      propertyPath: m_LocalRotation.w
-      value: 0.707088
-      objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: ee4943927c281c04f90a7d2479102ea6, type: 3}
-      propertyPath: m_LocalRotation.x
-      value: -0.015826494
-      objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: ee4943927c281c04f90a7d2479102ea6, type: 3}
-      propertyPath: m_LocalRotation.y
-      value: 0.7069297
-      objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: ee4943927c281c04f90a7d2479102ea6, type: 3}
-      propertyPath: m_LocalRotation.z
-      value: 0.005152488
-      objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: ee4943927c281c04f90a7d2479102ea6, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.x
-      value: -1.7
-      objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: ee4943927c281c04f90a7d2479102ea6, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.y
-      value: 90
-      objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: ee4943927c281c04f90a7d2479102ea6, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.z
-      value: -0.865
-      objectReference: {fileID: 0}
     - target: {fileID: -6130800129296764848, guid: ee4943927c281c04f90a7d2479102ea6, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
@@ -816,34 +764,86 @@ PrefabInstance:
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
       objectReference: {fileID: 2100000, guid: 4e208f7b6100ec6438169fe0ddf036a9, type: 2}
-    - target: {fileID: 919132149155446097, guid: ee4943927c281c04f90a7d2479102ea6, type: 3}
-      propertyPath: m_Name
-      value: Yeti_Smurf 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 919132149155446097, guid: ee4943927c281c04f90a7d2479102ea6, type: 3}
-      propertyPath: m_TagString
-      value: RiderAnimation
-      objectReference: {fileID: 0}
     - target: {fileID: 2853768270042634523, guid: ee4943927c281c04f90a7d2479102ea6, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
       objectReference: {fileID: 2100000, guid: aac0bb5937e84ba46bcb40463e549ca8, type: 2}
+    - target: {fileID: -8679921383154817045, guid: 46e0edea37813de46b29382662a620ad, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 46e0edea37813de46b29382662a620ad, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 46e0edea37813de46b29382662a620ad, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 46e0edea37813de46b29382662a620ad, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -0.05
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 46e0edea37813de46b29382662a620ad, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.025
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 46e0edea37813de46b29382662a620ad, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -0.05
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 46e0edea37813de46b29382662a620ad, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 0.707088
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 46e0edea37813de46b29382662a620ad, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: -0.015826494
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 46e0edea37813de46b29382662a620ad, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0.7069297
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 46e0edea37813de46b29382662a620ad, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0.005152488
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 46e0edea37813de46b29382662a620ad, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: -1.7
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 46e0edea37813de46b29382662a620ad, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 90
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 46e0edea37813de46b29382662a620ad, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: -0.865
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: 46e0edea37813de46b29382662a620ad, type: 3}
+      propertyPath: m_Name
+      value: Yeti_Smurf
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: 46e0edea37813de46b29382662a620ad, type: 3}
+      propertyPath: m_TagString
+      value: RiderAnimation
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: ee4943927c281c04f90a7d2479102ea6, type: 3}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 46e0edea37813de46b29382662a620ad, type: 3}
       insertIndex: -1
       addedObject: {fileID: 351713362624386642}
-  m_SourcePrefab: {fileID: 100100000, guid: ee4943927c281c04f90a7d2479102ea6, type: 3}
+  m_SourcePrefab: {fileID: 100100000, guid: 46e0edea37813de46b29382662a620ad, type: 3}
 --- !u!4 &1490030496570920346 stripped
 Transform:
-  m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: ee4943927c281c04f90a7d2479102ea6, type: 3}
+  m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 46e0edea37813de46b29382662a620ad, type: 3}
   m_PrefabInstance: {fileID: 1380106629745650289}
   m_PrefabAsset: {fileID: 0}
 --- !u!1 &2298654930710009632 stripped
 GameObject:
-  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: ee4943927c281c04f90a7d2479102ea6, type: 3}
+  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 46e0edea37813de46b29382662a620ad, type: 3}
   m_PrefabInstance: {fileID: 1380106629745650289}
   m_PrefabAsset: {fileID: 0}
 --- !u!111 &351713362624386642
